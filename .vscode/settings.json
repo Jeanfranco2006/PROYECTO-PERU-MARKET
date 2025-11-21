@@ -1,0 +1,8 @@
+{
+    "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.completion.importOrder": ["java", "javax", "com", "org"],
+    "java.configuration.maven.userSettings": "",
+    "java.compile.annotationProcessing.enabled": true,
+    "java.debug.settings.onBuildFailureProceed": true
+}   

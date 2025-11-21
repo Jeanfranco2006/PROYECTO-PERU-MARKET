@@ -1,0 +1,18 @@
+{
+  "personas": [
+    {
+      "id": "1",
+      "nombre": "Jean",
+      "apellido": "Chamorro",
+      "dni": "12345678",
+      "correo": "jean@example.com"
+    },
+    {
+      "id": "48bc",
+      "nombre": "Caleb",
+      "apellido": "Veramendi",
+      "dni": "43668686",
+      "correo": "chamorrocg021@gmai.com"
+    }
+  ]
+}
