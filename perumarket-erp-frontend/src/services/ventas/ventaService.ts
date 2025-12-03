@@ -1,6 +1,6 @@
 // services/ventaService.ts
-import type { Cliente } from '../types/Client';
-import type { DetallePago, Producto, ProductoVenta } from '../types/ventas';
+import type { Cliente } from '../../types/clientes/Client';
+import type { DetallePago, Producto, ProductoVenta } from '../../types/ventas/ventas';
 
 const API_URL = 'http://localhost:8080/api';
 

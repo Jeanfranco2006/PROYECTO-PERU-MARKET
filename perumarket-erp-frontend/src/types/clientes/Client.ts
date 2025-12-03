@@ -1,4 +1,4 @@
-import type { Persona } from "./Employee";
+import type { Persona } from "../Employee";
 
 export interface Cliente{
     clienteid?: number;

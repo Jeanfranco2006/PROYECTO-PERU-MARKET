@@ -3,7 +3,7 @@ import ClienteCard from "./ClientCards";
 import ClienteForm from "./ClientFrom";
 import ClientsSearchBar from "./ClientSearchBar";
 import ClienteDeleteModal from "./ClientDeleteModal";
-import type { Cliente } from "../../types/Client";
+import type { Cliente } from "../../types/clientes/Client";
 
 export default function AppClientes() {
   const [clientes, setClientes] = useState<Cliente[]>([]);

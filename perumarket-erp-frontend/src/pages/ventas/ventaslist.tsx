@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { FaTimes, FaShoppingCart, FaTrash, FaMinus, FaPlus, FaSearch, FaUserPlus } from 'react-icons/fa';
 import ModalCliente from './ModalCliente';
 import ModalPago from './ModalPago';
-import type { Cliente } from '../../types/Client';
-import type { DetallePago, MetodoPago, Producto, ProductoVenta } from '../../types/ventas';
-import { ventaService } from '../../services/ventaService';
+import type { Cliente } from '../../types/clientes/Client';
+import type { DetallePago, MetodoPago, Producto, ProductoVenta } from '../../types/ventas/ventas';
+import { ventaService } from '../../services/ventas/ventaService';
 
 const VentasList: React.FC = () => {
   const navigate = useNavigate();

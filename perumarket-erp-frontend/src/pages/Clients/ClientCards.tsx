@@ -1,4 +1,4 @@
-import type { Cliente } from "../../types/Client";
+import type { Cliente } from "../../types/clientes/Client";
 import { formatDate } from "../../utils/format";
 import { FiCreditCard, FiMail, FiPhone, FiCalendar } from "react-icons/fi";
 

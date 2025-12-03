@@ -1,7 +1,7 @@
 import { useState } from "react";
 import ClienteForm from "../Clients/ClientFrom";
 import { FaUserPlus } from "react-icons/fa";
-import type { Cliente } from "../../types/Client";
+import type { Cliente } from "../../types/clientes/Client";
 
 interface Props {
   isOpen: boolean;
