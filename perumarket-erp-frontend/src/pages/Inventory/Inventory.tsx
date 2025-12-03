@@ -23,7 +23,7 @@ interface Product {
     stockActual: number;
     stockMinimo: number;
     stockMaximo: number;
-    imagen: string; // AGREGADO: Campo para la imagen
+    imagen: string; 
     
     // Propiedades simuladas/calculadas:
     purchases: number; 
@@ -66,38 +66,14 @@ const BarcodeDisplay = ({ barcode, sku, name }: { barcode: string, sku: string, 
                         <head>
                             <title>Imprimir Código de Barras - ${name}</title>
                             <style>
-                                body { 
-                                    margin: 0; 
-                                    padding: 20px; 
-                                    font-family: Arial, sans-serif; 
-                                    text-align: center;
-                                    background: white;
-                                }
-                                .barcode-container { 
-                                    margin: 20px auto; 
-                                    max-width: 400px;
-                                    border: 1px solid #ddd;
-                                    padding: 20px;
-                                    border-radius: 8px;
-                                }
-                                .barcode-info {
-                                    margin-top: 15px;
-                                    font-size: 14px;
-                                    color: #333;
-                                    line-height: 1.4;
-                                }
-                                .product-name {
-                                    font-weight: bold;
-                                    font-size: 16px;
-                                    margin-bottom: 5px;
-                                }
+                                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; text-align: center; background: white; }
+                                .barcode-container { margin: 20px auto; max-width: 400px; border: 1px solid #ddd; padding: 20px; border-radius: 8px; }
+                                .barcode-info { margin-top: 15px; font-size: 14px; color: #333; line-height: 1.4; }
+                                .product-name { font-weight: bold; font-size: 16px; margin-bottom: 5px; }
                                 @media print {
                                     body { padding: 0; }
                                     .no-print { display: none; }
-                                    .barcode-container { 
-                                        border: none;
-                                        padding: 10px;
-                                    }
+                                    .barcode-container { border: none; padding: 10px; }
                                 }
                             </style>
                         </head>
@@ -133,7 +109,6 @@ const BarcodeDisplay = ({ barcode, sku, name }: { barcode: string, sku: string, 
             </div>
 
             <div className="bg-white p-4 border-2 border-gray-400 rounded">
-                {/* Imagen del código de barras generado por TEC-IT */}
                 {barcodeImageUrl ? (
                     <div className="mb-3">
                         <img 
@@ -145,20 +120,12 @@ const BarcodeDisplay = ({ barcode, sku, name }: { barcode: string, sku: string, 
                     </div>
                 ) : (
                     <div className="flex justify-center items-center space-x-1 mb-2">
-                        {/* Representación de barras simplificada como fallback */}
                         {Array.from({ length: 13 }).map((_, index) => (
-                            <div
-                                key={index}
-                                className={`h-12 w-1 ${index % 2 === 0 ? 'bg-black' : 'bg-white'} border border-gray-300`}
-                            />
+                            <div key={index} className={`h-12 w-1 ${index % 2 === 0 ? 'bg-black' : 'bg-white'} border border-gray-300`} />
                         ))}
                     </div>
                 )}
-
-                <div className="text-center font-mono text-sm tracking-widest bg-white py-2">
-                    {barcode}
-                </div>
-
+                <div className="text-center font-mono text-sm tracking-widest bg-white py-2">{barcode}</div>
                 <div className="text-center text-xs text-gray-600 mt-2 space-y-1">
                     <div><strong>SKU:</strong> {sku}</div>
                     <div><strong>Producto:</strong> {name}</div>
@@ -169,10 +136,7 @@ const BarcodeDisplay = ({ barcode, sku, name }: { barcode: string, sku: string, 
             <div className="flex flex-col sm:flex-row gap-2 mt-3">
                 <button
                     className="flex-1 bg-blue-600 text-white py-2 px-3 rounded text-sm hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
-                    onClick={() => {
-                        navigator.clipboard.writeText(barcode);
-                        alert('Código copiado al portapapeles');
-                    }}
+                    onClick={() => { navigator.clipboard.writeText(barcode); alert('Código copiado al portapapeles'); }}
                 >
                     <span>Copiar Código</span>
                 </button>
@@ -183,20 +147,9 @@ const BarcodeDisplay = ({ barcode, sku, name }: { barcode: string, sku: string, 
                     <span>Imprimir</span>
                 </button>
             </div>
-
             {barcodeImageUrl && (
                 <div className="mt-3 text-xs text-gray-500 text-center">
-                    <p>
-                        Generado con{' '}
-                        <a 
-                            href="https://www.tec-it.com" 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-blue-600 hover:underline"
-                        >
-                            TEC-IT Barcode Generator
-                        </a>
-                    </p>
+                    <p>Generado con <a href="https://www.tec-it.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">TEC-IT Barcode Generator</a></p>
                 </div>
             )}
         </div>
@@ -207,7 +160,6 @@ const BarcodeDisplay = ({ barcode, sku, name }: { barcode: string, sku: string, 
 const ProductImage = ({ imagen, nombre, className = "" }: { imagen: string, nombre: string, className?: string }) => {
   const [imageError, setImageError] = useState(false);
   
-  // Si no hay imagen o hay error, mostrar placeholder
   if (!imagen || imageError) {
     return (
       <div className={`bg-blue-50 rounded-lg flex flex-col items-center justify-center text-blue-400 ${className}`}>
@@ -217,16 +169,9 @@ const ProductImage = ({ imagen, nombre, className = "" }: { imagen: string, nomb
     );
   }
 
-  // Construir la URL completa de la imagen INCLUYENDO /api
   const getImageUrl = (imagePath: string) => {
-    if (imagePath.startsWith('http')) {
-      return imagePath;
-    }
-    // Si la ruta ya incluye /api, usarla directamente
-    if (imagePath.startsWith('/api/')) {
-      return `http://localhost:8080${imagePath}`;
-    }
-    // Si no incluye /api, agregarlo
+    if (imagePath.startsWith('http')) return imagePath;
+    if (imagePath.startsWith('/api/')) return `http://localhost:8080${imagePath}`;
     const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
     return `http://localhost:8080/api${cleanPath}`;
   };
@@ -241,6 +186,7 @@ const ProductImage = ({ imagen, nombre, className = "" }: { imagen: string, nomb
     />
   );
 };
+
 export default function Inventory() {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('all');
@@ -250,18 +196,14 @@ export default function Inventory() {
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [showBarcodeModal, setShowBarcodeModal] = useState(false);
 
-    // --- Carga de Productos desde la API ---
     const fetchProducts = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const response = await fetch(API_PRODUCTOS);
-            if (!response.ok) {
-                throw new Error('Error al cargar la lista de productos.');
-            }
+            if (!response.ok) throw new Error('Error al cargar la lista de productos.');
             const data: any[] = await response.json();
             
-            // Mapeamos los datos del DTO (ProductoResponse)
             const mappedProducts: Product[] = data.map(p => ({
                 id: p.id,
                 nombre: p.nombre,
@@ -274,7 +216,7 @@ export default function Inventory() {
                 stockActual: p.stockActual,
                 stockMinimo: p.stockMinimo,
                 stockMaximo: p.stockMaximo,
-                imagen: p.imagen || '', // AGREGADO: Campo de imagen
+                imagen: p.imagen || '',
                 pesoKg: parseFloat(p.pesoKg),
                 unidadMedida: p.unidadMedida,
                 ubicacionPrincipal: p.ubicacionPrincipal,
@@ -282,7 +224,6 @@ export default function Inventory() {
                 proveedorRazonSocial: p.proveedorRazonSocial,
                 precioCompra: parseFloat(p.precioCompra),
                 
-                // Valores Simulados
                 purchases: p.id * 2, 
                 sales: p.id * 5,
                 orders: p.id * 1,
@@ -301,7 +242,6 @@ export default function Inventory() {
         fetchProducts();
     }, [fetchProducts]);
 
-    // --- Cálculos y Filtros ---
     const categories = useMemo(() => {
         const uniqueCategories = Array.from(new Set(products.map(p => p.categoriaNombre)));
         return ['all', ...uniqueCategories];
@@ -328,6 +268,35 @@ export default function Inventory() {
         setShowBarcodeModal(true);
     };
 
+    // --- AGREGADO: Función para manejo de borrado físico ---
+    const handleDelete = async (id: number, nombre: string) => {
+        if (!window.confirm(`PELIGRO: ¿Estás seguro de eliminar "${nombre}" DE FORMA PERMANENTE?\n\nSe borrará:\n- El producto\n- Su stock actual\n- Todo su historial de movimientos\n- Sus códigos de barras`)) {
+            return;
+        }
+    
+        try {
+            const response = await fetch(`${API_PRODUCTOS}/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+    
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || 'No se pudo eliminar el producto.');
+            }
+    
+            setProducts(prevProducts => prevProducts.filter(product => product.id !== id));
+            alert('Producto eliminado completamente del sistema.');
+    
+        } catch (err: any) {
+            console.error('Error:', err);
+            alert(`Error: ${err.message}`);
+        }
+    };
+    // -----------------------------------------------------
+
     if (loading) return <div className="p-6 text-center text-gray-500">Cargando inventario...</div>;
     if (error) return <div className="p-6 text-center text-red-600 border border-red-300 bg-red-50 rounded-lg">Error: {error}</div>;
 
@@ -341,12 +310,7 @@ export default function Inventory() {
                     <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center sticky top-0 bg-white">
                             <h3 className="text-lg font-semibold">Código de Barras - {selectedProduct.nombre}</h3>
-                            <button
-                                onClick={() => setShowBarcodeModal(false)}
-                                className="text-gray-500 hover:text-gray-700 text-xl"
-                            >
-                                ✕
-                            </button>
+                            <button onClick={() => setShowBarcodeModal(false)} className="text-gray-500 hover:text-gray-700 text-xl">✕</button>
                         </div>
                         <div className="p-6">
                             <BarcodeDisplay 
@@ -368,8 +332,6 @@ export default function Inventory() {
 
             {/* 1. SECCIÓN DE ESTADÍSTICAS Y FILTROS */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-
-                {/* Cards de Estadísticas */}
                 <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
                     <div className="text-xl sm:text-2xl font-bold text-gray-900">{products.length}</div>
                     <div className="flex items-center gap-2 text-sm sm:text-base">
@@ -402,11 +364,8 @@ export default function Inventory() {
                     </div>
                 </div>
 
-                {/* Filtros y Acciones */}
                 <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200 col-span-2 md:col-span-4">
                     <div className="flex flex-col lg:flex-row gap-3 sm:gap-4 justify-between items-start lg:items-center">
-                        
-                        {/* Búsqueda */}
                         <div className="flex-1 relative w-full lg:w-auto">
                             <IoIosSearch className="w-5 h-5 absolute left-3 top-2.5 text-gray-400" />
                             <input
@@ -418,7 +377,6 @@ export default function Inventory() {
                             />
                         </div>
 
-                        {/* Filtro de Categoría */}
                         <select
                             className="w-full sm:w-auto border border-gray-300 rounded-lg px-3 py-2 text-sm"
                             value={filterCategory}
@@ -430,20 +388,12 @@ export default function Inventory() {
                             ))}
                         </select>
 
-                        {/* Botones de Acción */}
                         <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-                            <Link
-                                to="/inventario/almacenes"
-                                className="flex-1 px-4 py-2 rounded-lg bg-blue-400 text-white flex items-center justify-center gap-2 hover:bg-blue-600 active:bg-blue-700 transition-all duration-200 transform active:scale-[0.98] text-sm"
-                            >
+                            <Link to="/inventario/almacenes" className="flex-1 px-4 py-2 rounded-lg bg-blue-400 text-white flex items-center justify-center gap-2 hover:bg-blue-600 active:bg-blue-700 transition-all duration-200 transform active:scale-[0.98] text-sm">
                                 <IoMdHome className="w-5 h-5" />
                                 <span>Almacenes</span>
                             </Link>
-
-                            <Link
-                                to="/inventario/nuevo"
-                                className="flex-1 px-4 py-2 rounded-lg bg-emerald-500 text-white flex items-center justify-center gap-2 hover:bg-emerald-600 active:bg-emerald-700 transition-all duration-200 transform active:scale-[0.98] text-sm"
-                            >
+                            <Link to="/inventario/nuevo" className="flex-1 px-4 py-2 rounded-lg bg-emerald-500 text-white flex items-center justify-center gap-2 hover:bg-emerald-600 active:bg-emerald-700 transition-all duration-200 transform active:scale-[0.98] text-sm">
                                 <IoMdAdd className="w-5 h-5" />
                                 <span>Nuevo Producto</span>
                             </Link>
@@ -466,7 +416,6 @@ export default function Inventory() {
                     return (
                         <div key={product.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
                             
-                            {/* Header del Producto CON IMAGEN */}
                             <div className="h-48 bg-gray-100 rounded-lg relative flex items-center justify-center overflow-hidden">
                                 <div className="absolute top-2 left-2 z-10">
                                     <span className="text-xs font-medium text-gray-700 bg-white/90 px-2 py-1 rounded border">
@@ -478,7 +427,6 @@ export default function Inventory() {
                                     {statusText}
                                 </div>
                                 
-                                {/* Imagen del producto */}
                                 <ProductImage 
                                     imagen={product.imagen} 
                                     nombre={product.nombre}
@@ -486,13 +434,11 @@ export default function Inventory() {
                                 />
                             </div>
 
-                            {/* Información Básica */}
                             <div className="mt-4">
                                 <h3 className="font-bold text-gray-900">{product.nombre}</h3>
                                 <p className="text-sm text-gray-600 line-clamp-2">{product.descripcion}</p>
                             </div>
 
-                            {/* Precios y SKUs */}
                             <div className="flex justify-between items-center mt-3">
                                 <span className="text-xl sm:text-2xl font-bold text-gray-900">S/{product.precioVenta.toFixed(2)}</span>
                                 <div className="text-right">
@@ -504,7 +450,6 @@ export default function Inventory() {
                                 </div>
                             </div>
 
-                            {/* Botón Ver Código de Barras */}
                             <div className="bg-gray-50 p-3 rounded-lg mt-3 border border-gray-200">
                                 <div className="flex items-center justify-between">
                                     <span className="text-sm font-medium text-gray-700 flex items-center gap-1">
@@ -523,7 +468,6 @@ export default function Inventory() {
                                 </div>
                             </div>
 
-                            {/* Métricas de Stock */}
                             <div className="grid grid-cols-3 gap-2 mt-4">
                                 <div className="bg-blue-50 p-3 rounded text-center">
                                     <div className="text-lg sm:text-xl font-bold text-blue-700">{product.stockActual}</div>
@@ -539,10 +483,7 @@ export default function Inventory() {
                                 </div>
                             </div>
                             
-                            {/* Detalles de Ubicación y Margen */}
                             <div className="space-y-2 text-sm text-gray-600 mt-4">
-                                
-                                {/* Peso/Unidad */}
                                 <div className="flex justify-between items-center border-b border-gray-100 pb-1">
                                     <span className="flex items-center gap-1">
                                         <IoIosArchive className="w-4 h-4" /> Peso/Unidad:
@@ -550,7 +491,6 @@ export default function Inventory() {
                                     <span className="font-medium">{product.pesoKg.toFixed(3)} kg / {product.unidadMedida}</span>
                                 </div>
 
-                                {/* Ubicación */}
                                 <div className="flex justify-between items-center">
                                     <span className="flex items-center gap-1">
                                         <IoIosPin className="w-4 h-4" /> Ubicación:
@@ -558,7 +498,6 @@ export default function Inventory() {
                                     <span className="font-medium">{product.ubicacionPrincipal}</span>
                                 </div>
 
-                                {/* Almacén */}
                                 <div className="flex justify-between items-center">
                                     <span className="flex items-center gap-1">
                                         <IoIosBuild className="w-4 h-4" /> Almacén:
@@ -566,7 +505,6 @@ export default function Inventory() {
                                     <span className="font-medium text-blue-600">{product.almacenNombre}</span>
                                 </div>
 
-                                {/* Proveedor */}
                                 <div className="flex justify-between items-center">
                                     <span className="flex items-center gap-1">
                                         <IoIosPeople className="w-4 h-4" /> Proveedor:
@@ -574,14 +512,12 @@ export default function Inventory() {
                                     <span className="font-medium">{product.proveedorRazonSocial}</span>
                                 </div>
                                 
-                                {/* Costo y Margen */}
                                 <div className="flex justify-between items-center pt-2 border-t border-gray-100">
                                     <span className="text-gray-700 font-semibold">Costo: S/{product.precioCompra.toFixed(2)}</span>
                                     <span className="font-bold text-green-600">Margen: {marginPercentage.toFixed(1)}%</span>
                                 </div>
                             </div>
 
-                            {/* Métricas de Movimiento */}
                             <div className="grid grid-cols-3 gap-2 mt-4">
                                 <div className="bg-purple-50 p-2 rounded text-center">
                                     <IoIosCart className="w-5 h-5 mx-auto text-purple-600 mb-1" />
@@ -600,7 +536,6 @@ export default function Inventory() {
                                 </div>
                             </div>
 
-                            {/* Botones de Acción */}
                             <div className="flex flex-col sm:flex-row gap-2 mt-4">
                                 <Link
                                     to={`/inventario/editar/${product.id}`}
@@ -617,6 +552,8 @@ export default function Inventory() {
                                     Movimientos
                                 </Link>
                                 <button
+                                    // AGREGADO: Llamada a la función handleDelete
+                                    onClick={() => handleDelete(product.id, product.nombre)}
                                     className="flex-1 bg-red-600 text-white py-2 px-3 rounded-lg flex items-center justify-center gap-2 hover:bg-red-700 active:bg-red-800 transition-all duration-200 transform active:scale-[0.98] text-sm"
                                 >
                                     <IoMdTrash className="w-5 h-5" />

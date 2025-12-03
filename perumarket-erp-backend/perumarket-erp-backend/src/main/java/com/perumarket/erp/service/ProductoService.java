@@ -27,6 +27,7 @@ import com.perumarket.erp.models.entity.ProveedorProducto;
 import com.perumarket.erp.repository.AlmacenRepository;
 import com.perumarket.erp.repository.CategoriaProductoRepository;
 import com.perumarket.erp.repository.CodigoBarrasRepository;
+import com.perumarket.erp.repository.DetalleVentaRepository; // <--- 1. IMPORTANTE: IMPORT AGREGADO
 import com.perumarket.erp.repository.InventarioRepository;
 import com.perumarket.erp.repository.MovimientoInventarioRepository;
 import com.perumarket.erp.repository.ProductoRepository;
@@ -44,7 +45,8 @@ public class ProductoService {
     private final AlmacenRepository almacenRepository;
     private final ProveedorProductoRepository proveedorProductoRepository;
     private final CodigoBarrasRepository codigoBarrasRepository;
-    private final MovimientoInventarioRepository movimientoInventarioRepository; // Nuevo
+    private final MovimientoInventarioRepository movimientoInventarioRepository;
+    private final DetalleVentaRepository detalleVentaRepository; // <--- 2. NUEVO CAMPO
 
     public ProductoService(ProductoRepository productoRepository, 
                            CategoriaProductoRepository categoriaProductoRepository, 
@@ -53,7 +55,8 @@ public class ProductoService {
                            AlmacenRepository almacenRepository,
                            ProveedorProductoRepository proveedorProductoRepository, 
                            CodigoBarrasRepository codigoBarrasRepository,
-                           MovimientoInventarioRepository movimientoInventarioRepository) {
+                           MovimientoInventarioRepository movimientoInventarioRepository,
+                           DetalleVentaRepository detalleVentaRepository) { // <--- 3. AGREGADO AL CONSTRUCTOR
         this.productoRepository = productoRepository;
         this.categoriaProductoRepository = categoriaProductoRepository;
         this.inventarioRepository = inventarioRepository;
@@ -62,6 +65,7 @@ public class ProductoService {
         this.proveedorProductoRepository = proveedorProductoRepository;
         this.codigoBarrasRepository = codigoBarrasRepository;
         this.movimientoInventarioRepository = movimientoInventarioRepository;
+        this.detalleVentaRepository = detalleVentaRepository; // <--- 4. ASIGNACIÓN
     }
 
     /**
@@ -376,5 +380,36 @@ public class ProductoService {
         return obtenerProductoPorId(productoActualizado.getId());
     }
     
+    // =======================================================================
+    // 5. ELIMINACIÓN FÍSICA TOTAL (HARD DELETE)
+    // =======================================================================
+    @Transactional
+    public void eliminarProductoPermanente(Integer id) {
+        // 1. Verificar si existe
+        if (!productoRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Producto", "id", id.toString());
+        }
+
+        // 2. Borrar en orden jerárquico (Hijos -> Padre)
+        
+        // A. VENTAS (El error que te salía): Borramos el historial de ventas de este producto
+        // IMPORTANTE: Requiere que hayas agregado "void deleteByProductoId(Integer id);" en DetalleVentaRepository
+        detalleVentaRepository.deleteByProductoId(id);
+
+        // B. Movimientos (Historial) - Suele ser el candado más fuerte
+        movimientoInventarioRepository.deleteByProductoId(id);
+
+        // C. Inventario (Stock actual)
+        inventarioRepository.deleteByProductoId(id);
+
+        // D. Códigos de Barras
+        codigoBarrasRepository.deleteByProductoId(id);
+
+        // E. Relación con Proveedores
+        proveedorProductoRepository.deleteByProductoId(id);
+
+        // F. FINALMENTE: El Producto
+        productoRepository.deleteById(id);
+    }
     
 }

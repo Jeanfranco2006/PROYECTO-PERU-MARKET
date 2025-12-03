@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface CodigoBarrasRepository extends JpaRepository<CodigoBarras, Integer> {
     Optional<CodigoBarras> findByCodigo(String codigo);
     Optional<CodigoBarras> findByProductoIdAndEsPrincipalTrue(Integer productoId);
+    void deleteByProductoId(Integer idProducto);
 }

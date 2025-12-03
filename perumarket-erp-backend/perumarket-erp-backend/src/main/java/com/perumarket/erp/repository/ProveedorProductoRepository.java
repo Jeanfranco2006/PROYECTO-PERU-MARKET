@@ -17,4 +17,5 @@ public interface ProveedorProductoRepository extends JpaRepository<ProveedorProd
     
     // Opcional: Si esperas que pueda haber más de un registro por producto, aunque solo uno deba ser principal.
     List<ProveedorProducto> findByProductoId(Integer productoId);
+    void deleteByProductoId(Integer idProducto);
 }

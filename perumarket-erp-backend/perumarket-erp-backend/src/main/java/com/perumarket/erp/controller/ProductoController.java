@@ -59,11 +59,11 @@ public class ProductoController {
 
     // 5. 🆕 ENDPOINT PARA DESACTIVAR UN PRODUCTO (DELETE /productos/{id})
     // Se usa DELETE para la acción, pero es una "eliminación lógica"
-    @DeleteMapping("/{id}")
+    /*@DeleteMapping("/{id}")
     public ResponseEntity<Void> desactivarProducto(@PathVariable Integer id) {
         productoService.desactivarProducto(id);
         return ResponseEntity.noContent().build(); // 204 No Content: éxito sin contenido de respuesta
-    }
+    }*/
 
     // MÉTODO NECESARIO PARA ACTIVAR/DESACTIVAR
     @PatchMapping("/{id}/estado")
@@ -89,7 +89,19 @@ public class ProductoController {
         return ResponseEntity.ok(historial);
     }
     
-
+    // 5. ENDPOINT PARA ELIMINAR UN PRODUCTO PERMANENTEMENTE (DELETE /productos/{id})
+    @DeleteMapping("/{id}")
+    public ResponseEntity<?> eliminarProducto(@PathVariable Integer id) {
+        try {
+            productoService.eliminarProductoPermanente(id);
+            // Retornamos un mensaje JSON de éxito
+            return ResponseEntity.ok().body("{\"message\": \"Producto y todos sus datos eliminados correctamente.\"}");
+        } catch (Exception e) {
+            // Manejo de errores (por ejemplo, si el producto ya fue vendido y está en 'DetalleVenta')
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body("{\"message\": \"No se pudo eliminar: " + e.getMessage() + "\"}");
+        }
+    }
     
     
 }

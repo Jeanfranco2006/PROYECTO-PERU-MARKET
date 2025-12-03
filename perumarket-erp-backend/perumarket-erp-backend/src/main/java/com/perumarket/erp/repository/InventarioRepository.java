@@ -17,5 +17,6 @@ public interface InventarioRepository extends JpaRepository<Inventario, Integer>
     List<Inventario> findByProductoId(Integer productoId);
 
     Optional<Inventario> findByProductoIdAndAlmacenId(Integer productoId, Integer almacenId);
+    void deleteByProductoId(Integer idProducto);
 
 }
