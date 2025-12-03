@@ -1,249 +1,121 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEmployeeManagement } from "../../hooks/useEmployeeManagement";
+import { useModalManagement } from "../../hooks/useModalManagement";
+import type { Departament, Employee } from "../../types/Employee"; 
 
-// Importar componentes
-import SearchBar from "./EmployeeSearchBar";
+// Iconos para una interfaz de usuario limpia y consistente
+import { LuUsers, LuFilter, LuPlus, LuLayoutList, LuCheck } from "react-icons/lu";
+import { HiOutlineOfficeBuilding, HiOutlineUserAdd } from "react-icons/hi";
+import { FiAlertCircle } from "react-icons/fi";
+
+// Importación de componentes hijos refactorizados
+import EmployeeSearchBar from "./EmployeeSearchBar";
 import EmployeeCard from "./EmployeeCards";
 import EmployeeForm from "./EmployeeForm";
 import DeleteModal from "./EmployeeDeleteModal";
 import DepartmentForm from "./DepartmentForm";
-import type { Departament, Employee } from "../../types/Employee";
 
+/**
+ * Componente principal para la gestión de empleados
+ * Presenta una interfaz completa con estadísticas, búsqueda y CRUD de empleados y departamentos
+ */
 export default function AppEmployees() {
-  const [employees, setEmployees] = useState<Employee[]>([]);
-  const [departamentos, setDepartamentos] = useState<Departament[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const {
+    departamentos,
+    loading,
+    error,
+    filters,
+    stats,
+    filteredEmployees,
+    handleFilterChange, 
+    clearFilters,
+    handleSaveEmployee,
+    handleDeleteEmployee,
+    handleSaveDepartment,
+  } = useEmployeeManagement();
 
-  // Estados para modales
-  const [isFormVisible, setIsFormVisible] = useState(false);
-  const [isDepFormVisible, setIsDepFormVisible] = useState(false);
-  const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
-  const [formEmployee, setFormEmployee] = useState<Employee | null>(null);
+  const {
+    isFormVisible,
+    isDepFormVisible,
+    deletingEmployee,
+    formEmployee,
+    openForm,
+    closeForm,
+    openDepartmentForm,
+    closeDepartmentForm,
+    setDeletingEmployee,
+    setFormEmployeeField,
+  } = useModalManagement();
 
-  // Filtros
-  const [filters, setFilters] = useState({
-    texto: "",
-    dni: "",
-    estado: "",
-  });
+  // --- Lógica de Coordinación entre Capas ---
 
-  // Cargar datos iniciales
-  const loadEmployees = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetch('http://localhost:8080/api/empleados');
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      setEmployees(data);
-    } catch (error) {
-      console.error('Error cargando empleados:', error);
-      setError("No se pudieron cargar los empleados. Verifique la conexión.");
-      setEmployees([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loadDepartamentos = useCallback(async () => {
-    try {
-      const response = await fetch('http://localhost:8080/api/departamentos');
-      
-      if (!response.ok) {
-        throw new Error(`Error ${response.status}: ${response.statusText}`);
-      }
-      
-      const data = await response.json();
-      setDepartamentos(data);
-    } catch (error) {
-      console.error('Error cargando departamentos:', error);
-      setDepartamentos([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadEmployees();
-    loadDepartamentos();
-  }, [loadEmployees, loadDepartamentos]);
-
-  // Manejo de filtros
-  const handleFilterChange = (field: string, value: string) => {
-    setFilters(prev => ({ 
-      ...prev, 
-      [field]: value 
-    }));
+  /**
+   * Maneja el guardado de empleado y cierre del formulario
+   * @param emp - Objeto Employee a guardar
+   * @returns Promise<void>
+   */
+  const handleSaveEmployeeAndClose = async (emp: Employee): Promise<void> => {
+    const success = await handleSaveEmployee(emp);
+    if (success) closeForm();
   };
 
-  const clearFilters = () => {
-    setFilters({
-      texto: "",
-      dni: "",
-      estado: "",
-    });
+  /**
+   * Maneja el guardado de departamento y cierre del formulario
+   * @param dep - Objeto Departament a guardar
+   * @returns Promise<void>
+   */
+  const handleSaveDepartmentAndClose = async (dep: Departament): Promise<void> => {
+    const success = await handleSaveDepartment(dep);
+    if (success) closeDepartmentForm();
   };
 
-  // Manejo de formulario de empleado
-  const openForm = (emp?: Employee) => {
-    if (emp) {
-      setFormEmployee({ ...emp });
-    } else {
-      setFormEmployee({
-        empleadoId: undefined,
-        persona: {
-          id: undefined,
-          tipoDocumento: "DNI",
-          numeroDocumento: "",
-          nombres: "",
-          apellidoPaterno: "",
-          apellidoMaterno: "",
-          correo: "",
-          telefono: "",
-          direccion: "",
-          fechaNacimiento: "",
-        },
-        departamento: null,
-        puesto: "",
-        sueldo: 0,
-        fechaContratacion: new Date().toISOString().substring(0, 10),
-        estado: "ACTIVO",
-        foto: "",
-        cv: "",
-      });
-    }
-    setIsFormVisible(true);
-  };
-
-  const handleSaveEmployee = async (emp: Employee) => {
-    try {
-      const employeeToSend = {
-        ...emp,
-        departamento: emp.departamento?.id ? {
-          id: emp.departamento.id,
-          nombre: emp.departamento.nombre,
-          descripcion: emp.departamento.descripcion
-        } : null
-      };
-
-      const url = emp.empleadoId 
-        ? `http://localhost:8080/api/empleados/${emp.empleadoId}`
-        : 'http://localhost:8080/api/empleados';
-      
-      const method = emp.empleadoId ? 'PUT' : 'POST';
-
-      const response = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(employeeToSend),
-      });
-
-      if (response.ok) {
-        await loadEmployees();
-        setIsFormVisible(false);
-        setFormEmployee(null);
-      } else {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Error del servidor');
-      }
-    } catch (error) {
-      console.error('Error guardando empleado:', error);
-      alert(`Error al guardar empleado: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
-  };
-
-  // Manejo de formulario de departamento
-  const openDepartmentForm = () => {
-    setFormEmployee(null);
-    setIsDepFormVisible(true);
-  };
-
-  const handleSaveDepartment = async (dep: Departament) => {
-    try {
-      const response = await fetch('http://localhost:8080/api/departamentos', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dep),
-      });
-
-      if (response.ok) {
-        await loadDepartamentos();
-        setIsDepFormVisible(false);
-      } else {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Error del servidor');
-      }
-    } catch (error) {
-      console.error('Error guardando departamento:', error);
-      alert(`Error al guardar departamento: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
-  };
-
-  // Manejo de eliminación
-  const handleDeleteEmployee = async () => {
+  /**
+   * Maneja la eliminación de empleado y cierre del modal
+   * @returns Promise<void>
+   */
+  const handleDeleteEmployeeAndClose = async (): Promise<void> => {
     if (!deletingEmployee?.empleadoId) return;
-
-    try {
-      const response = await fetch(`http://localhost:8080/api/empleados/${deletingEmployee.empleadoId}`, {
-        method: 'DELETE',
-      });
-
-      if (response.ok) {
-        await loadEmployees();
-        setDeletingEmployee(null);
-      } else {
-        const errorText = await response.text();
-        throw new Error(errorText || 'Error del servidor');
-      }
-    } catch (error) {
-      console.error('Error eliminando empleado:', error);
-      alert(`Error al eliminar empleado: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-    }
+    const success = await handleDeleteEmployee(deletingEmployee.empleadoId);
+    if (success) setDeletingEmployee(null); 
   };
 
-  // Filtrado de empleados
-  const filteredEmployees = employees.filter((emp) => {
-    const fullName = `${emp.persona.nombres} ${emp.persona.apellidoPaterno} ${emp.persona.apellidoMaterno}`.toLowerCase();
-    
-    const matchesText = !filters.texto || fullName.includes(filters.texto.toLowerCase());
-    const matchesDni = !filters.dni || emp.persona.numeroDocumento.includes(filters.dni);
-    const matchesEstado = !filters.estado || emp.estado === filters.estado;
-
-    return matchesText && matchesDni && matchesEstado;
-  });
-
-  // Estadísticas
-  const stats = {
-    total: employees.length,
-    activos: employees.filter(emp => emp.estado === 'ACTIVO').length,
-    inactivos: employees.filter(emp => emp.estado === 'INACTIVO').length,
-    filtered: filteredEmployees.length
+  /**
+   * Confirma y ejecuta la eliminación del empleado
+   */
+  const handleConfirmDelete = (): void => {
+    handleDeleteEmployeeAndClose();
   };
 
-  // Loading state mejorado
-  if (loading && employees.length === 0) {
+  // --- Renderizado de Estado de Carga (Skeleton Screen) ---
+  if (loading && stats.total === 0) {
     return (
-      <div className="min-h-screen bg-gray-50 p-4">
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* Header skeleton */}
-          <div className="animate-pulse">
-            <div className="h-8 bg-gray-200 rounded w-64 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-96"></div>
+      <div className="min-h-screen bg-slate-50 p-6 sm:p-10">
+        <div className="max-w-7xl mx-auto space-y-8">
+          {/* Esqueleto del Encabezado */}
+          <div className="flex justify-between items-center animate-pulse">
+            <div className="space-y-3 w-1/3">
+              <div className="h-8 bg-slate-200 rounded w-3/4"></div>
+              <div className="h-4 bg-slate-200 rounded w-full"></div>
+            </div>
+            <div className="flex gap-3">
+              <div className="h-10 w-32 bg-slate-200 rounded"></div>
+              <div className="h-10 w-32 bg-slate-200 rounded"></div>
+            </div>
           </div>
           
-          {/* Filters skeleton */}
-          <div className="animate-pulse h-12 bg-gray-200 rounded-lg"></div>
+          {/* Esqueleto de Estadísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-28 bg-slate-200 rounded-lg"></div>
+            ))}
+          </div>
           
-          {/* Cards skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Esqueleto de Búsqueda */}
+          <div className="h-20 bg-slate-200 rounded-lg"></div>
+          
+          {/* Esqueleto de Tarjetas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="animate-pulse h-48 bg-gray-200 rounded-lg"></div>
+              <div key={i} className="h-72 bg-slate-200 rounded-lg shadow-sm border border-slate-100"></div>
             ))}
           </div>
         </div>
@@ -251,142 +123,118 @@ export default function AppEmployees() {
     );
   }
 
+  // --- Componente de Presentación Principal ---
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 space-y-8">
         
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        {/* Sección de Encabezado */}
+        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 border-b border-slate-200 pb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Gestión de Empleados</h1>
-            <p className="text-gray-600 mt-1">Administra y organiza la información de tus colaboradores</p>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+              <LuLayoutList className="text-indigo-600" />
+              Directorio de Empleados
+            </h1>
+            <p className="text-slate-500 mt-2 text-sm max-w-2xl leading-relaxed">
+              Gestione el capital humano, administre departamentos y supervise el estado 
+              de la plantilla laboral desde un panel centralizado y seguro.
+            </p>
           </div>
           
-          {/* Estadísticas rápidas */}
-          <div className="flex gap-4 text-sm">
-            <div className="bg-white px-3 py-2 rounded-lg border shadow-sm">
-              <div className="text-gray-600">Total</div>
-              <div className="font-semibold text-lg">{stats.total}</div>
-            </div>
-            <div className="bg-white px-3 py-2 rounded-lg border shadow-sm">
-              <div className="text-gray-600">Activos</div>
-              <div className="font-semibold text-lg text-green-600">{stats.activos}</div>
-            </div>
-            <div className="bg-white px-3 py-2 rounded-lg border shadow-sm">
-              <div className="text-gray-600">Filtrados</div>
-              <div className="font-semibold text-lg text-blue-600">{stats.filtered}</div>
-            </div>
+          {/* Grupo de Botones de Acción */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <button
+              onClick={openDepartmentForm}
+              className="inline-flex items-center justify-center px-4 py-2.5 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            >
+              <HiOutlineOfficeBuilding className="w-5 h-5 mr-2 text-slate-500" />
+              Nuevo Departamento
+            </button>
+
+            <button
+              onClick={() => openForm()}
+              className="inline-flex items-center justify-center px-4 py-2.5 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+            >
+              <HiOutlineUserAdd className="w-5 h-5 mr-2" />
+              Nuevo Empleado
+            </button>
           </div>
         </div>
 
-        {/* Panel de filtros y acciones */}
-        <div className="bg-white rounded-xl border shadow-sm p-4">
-          <div className="flex flex-col lg:flex-row lg:items-end gap-4">
-            
-            {/* Barra de búsqueda */}
-            <div className="flex-1">
-              <SearchBar 
-                filters={filters} 
-                onChange={handleFilterChange} 
-              />
-            </div>
+        {/* Sección de KPIs / Estadísticas */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+          <StatCard 
+            title="Total Empleados" 
+            value={stats.total} 
+            icon="users" 
+          />
+          <StatCard 
+            title="Activos" 
+            value={stats.activos} 
+            color="text-emerald-600" 
+            icon="check" 
+          />
+          <StatCard 
+            title="Resultados Filtrados" 
+            value={stats.filtered} 
+            color="text-indigo-600" 
+            icon="filter" 
+          />
+        </div>
 
-            {/* Controles de filtro */}
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex gap-2">
+        {/* Contenedor de Herramientas y Filtros */}
+        <div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col lg:flex-row gap-6 lg:items-start justify-between">
+              {/* Inyección del Componente de Búsqueda */}
+              <div className="flex-1 w-full">
+                <EmployeeSearchBar 
+                  filters={filters} 
+                  onChange={handleFilterChange} 
+                />
+              </div>
+
+              {/* Información y Restablecimiento de Filtros */}
+              <div className="flex flex-col items-end gap-2 min-w-max pt-1">
+                <div className="text-sm text-slate-500">
+                  Mostrando <span className="font-bold text-slate-900">{stats.filtered}</span> registros
+                </div>
                 <button
                   onClick={clearFilters}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={!filters.texto && !filters.dni && !filters.estado}
+                  className={`text-xs font-medium px-3 py-1.5 rounded transition-colors ${
+                    !filters.texto && !filters.dni && !filters.estado
+                      ? 'text-slate-300 cursor-not-allowed'
+                      : 'text-indigo-600 hover:bg-indigo-50 bg-white border border-indigo-100'
+                  }`}
                 >
-                  Limpiar
-                </button>
-              </div>
-              
-              {/* Botones de acción */}
-              <div className="flex flex-col sm:flex-row gap-2">
-                <button
-                  onClick={() => openForm()}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 w-full sm:w-auto justify-center"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  <span className="hidden sm:block">Nuevo Empleado</span>
-                </button>
-
-                <button
-                  onClick={openDepartmentForm}
-                  className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 w-full sm:w-auto justify-center"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span className="hidden sm:block">Nuevo Departamento</span>
+                  Restablecer vista
                 </button>
               </div>
             </div>
-          </div>
-
-          {/* Información de resultados */}
-          <div className="mt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-sm text-gray-600">
-            <div>
-              Mostrando <span className="font-semibold text-gray-900">{stats.filtered}</span> de{" "}
-              <span className="font-semibold text-gray-900">{stats.total}</span> empleados
-            </div>
-            
-            {stats.filtered !== stats.total && (
-              <button
-                onClick={clearFilters}
-                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                Mostrar todos
-              </button>
-            )}
           </div>
         </div>
 
-        {/* Estado de error */}
+        {/* Mensaje de Error */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-            <div className="flex items-center gap-3">
-              <svg className="w-5 h-5 text-red-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p className="text-red-800 font-medium">Error al cargar datos</p>
-                <p className="text-red-600 text-sm mt-1">{error}</p>
-              </div>
+          <div className="rounded-md bg-red-50 p-4 border border-red-200 flex items-start gap-3">
+            <FiAlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
+            <div>
+              <h3 className="text-sm font-medium text-red-800">Error de conexión</h3>
+              <p className="mt-1 text-sm text-red-700">{error}</p>
             </div>
           </div>
         )}
 
-        {/* Lista de empleados */}
+        {/* Resultados en Grid */}
         {filteredEmployees.length === 0 ? (
-          <div className="bg-gradient-to-br from-gray-50 to-gray-100 border-2 border-dashed border-gray-300 rounded-xl p-8 text-center">
-            <svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">
-              {employees.length === 0 ? 'No hay empleados registrados' : 'No se encontraron resultados'}
-            </h3>
-            <p className="text-gray-600 mb-4 max-w-md mx-auto">
-              {employees.length === 0 
-                ? 'Comienza registrando el primer empleado en tu sistema.'
-                : 'Intenta ajustar los filtros de búsqueda para ver más resultados.'
-              }
-            </p>
-            {employees.length === 0 && (
-              <button
-                onClick={() => openForm()}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-              >
-                Registrar Primer Empleado
-              </button>
-            )}
-          </div>
+          <EmptyState 
+            isInitial={stats.total === 0} 
+            onAction={() => openForm()} 
+            onClear={clearFilters}
+          />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredEmployees.map((emp) => (
               <EmployeeCard
                 key={emp.empleadoId}
@@ -398,45 +246,62 @@ export default function AppEmployees() {
           </div>
         )}
 
+        {/* --- Modales (Renderizado Condicional) --- */}
+        
         {/* Modal de Empleado */}
         {isFormVisible && formEmployee && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
-              <EmployeeForm
-                state={formEmployee}
-                departamentos={departamentos}
-                onCancel={() => setIsFormVisible(false)}
-                onSave={handleSaveEmployee}
-                setField={(field, value) => {
-                  if (field.startsWith("persona.")) {
-                    const key = field.replace("persona.", "");
-                    setFormEmployee((prev) => ({
-                      ...prev!,
-                      persona: { ...prev!.persona, [key]: value },
-                    }));
-                  } else {
-                    setFormEmployee((prev) => ({ ...prev!, [field]: value }));
-                  }
-                }}
-              />
+          <div 
+            className="fixed inset-0 z-50 overflow-y-auto" 
+            aria-labelledby="modal-title" 
+            role="dialog" 
+            aria-modal="true"
+          >
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              {/* Backdrop con efecto blur */}
+              <div 
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+                onClick={closeForm}
+              ></div>
+              
+              <span 
+                className="hidden sm:inline-block sm:align-middle sm:h-screen" 
+                aria-hidden="true"
+              >
+                &#8203;
+              </span>
+              
+              <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-slate-200">
+                <EmployeeForm
+                  state={formEmployee}
+                  departamentos={departamentos}
+                  onCancel={closeForm}
+                  onSave={handleSaveEmployeeAndClose}
+                  setField={setFormEmployeeField}
+                />
+              </div>
             </div>
           </div>
         )}
 
         {/* Modal de Departamento */}
         {isDepFormVisible && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-              <DepartmentForm
-                state={{
-                  id: undefined,
-                  nombre: "",
-                  descripcion: "",
-                }}
-                setField={(f, v) => {}}
-                onCancel={() => setIsDepFormVisible(false)}
-                onSave={handleSaveDepartment}
-              />
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              <div 
+                className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" 
+                onClick={closeDepartmentForm}
+              ></div>
+              <span className="hidden sm:inline-block sm:align-middle sm:h-screen">
+                &#8203;
+              </span>
+              <div className="inline-block align-bottom bg-white rounded-xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full border border-slate-200">
+                <DepartmentForm
+                  state={{ id: undefined, nombre: "", descripcion: "" }} 
+                  setField={() => {}} // Implementar según necesidad
+                  onCancel={closeDepartmentForm}
+                  onSave={handleSaveDepartmentAndClose}
+                />
+              </div>
             </div>
           </div>
         )}
@@ -444,12 +309,120 @@ export default function AppEmployees() {
         {/* Modal de Confirmación de Eliminación */}
         <DeleteModal
           visible={!!deletingEmployee}
-          message={`¿Estás seguro de que deseas eliminar a ${deletingEmployee?.persona.nombres} ${deletingEmployee?.persona.apellidoPaterno}?`}
-          subMessage="Esta acción no se puede deshacer."
+          message="Confirmar eliminación"
+          subMessage={`¿Está seguro que desea dar de baja a ${deletingEmployee?.persona.nombres} ${deletingEmployee?.persona.apellidoPaterno}? Esta operación no es reversible.`}
           onCancel={() => setDeletingEmployee(null)}
-          onConfirm={handleDeleteEmployee}
+          onConfirm={handleConfirmDelete} 
         />
       </div>
     </div>
   );
 }
+
+// --- Componentes UI Auxiliares Refinados ---
+
+/**
+ * Componente para mostrar tarjetas de estadísticas
+ */
+interface StatCardProps {
+  title: string;
+  value: number;
+  color?: string;
+  icon: 'users' | 'check' | 'filter';
+}
+
+const StatCard: React.FC<StatCardProps> = ({ 
+  title, 
+  value, 
+  color = "text-slate-900", 
+  icon 
+}) => {
+  // Selección dinámica de icono
+  const Icon = icon === 'users' ? LuUsers : icon === 'check' ? LuCheck : LuFilter;
+  
+  // Clases condicionales para el fondo
+  const bgClass = color === 'text-slate-900' 
+    ? 'bg-slate-100 text-slate-600' 
+    : color === 'text-emerald-600' 
+      ? 'bg-emerald-50 text-emerald-600' 
+      : 'bg-indigo-50 text-indigo-600';
+
+  return (
+    <div className="bg-white overflow-hidden rounded-lg shadow-sm border border-slate-200 hover:border-indigo-200 transition-colors">
+      <div className="p-5">
+        <div className="flex items-center">
+          <div className="flex-shrink-0">
+            <div className={`p-3 rounded-md ${bgClass}`}>
+              <Icon className="h-6 w-6" />
+            </div>
+          </div>
+          <div className="ml-5 w-0 flex-1">
+            <dl>
+              <dt className="text-sm font-medium text-slate-500 truncate">
+                {title}
+              </dt>
+              <dd>
+                <div className={`text-2xl font-bold tracking-tight ${color}`}>
+                  {value}
+                </div>
+              </dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Componente para estado vacío (sin datos o sin resultados)
+ */
+interface EmptyStateProps {
+  isInitial: boolean;
+  onAction: () => void;
+  onClear: () => void;
+}
+
+const EmptyState: React.FC<EmptyStateProps> = ({ 
+  isInitial, 
+  onAction, 
+  onClear 
+}) => {
+  return (
+    <div className="text-center py-20 bg-white rounded-lg border-2 border-dashed border-slate-300">
+      <div className="mx-auto h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+        {isInitial ? (
+          <LuPlus className="h-8 w-8 text-slate-400" />
+        ) : (
+          <LuFilter className="h-8 w-8 text-slate-400" />
+        )}
+      </div>
+      <h3 className="mt-2 text-base font-semibold text-slate-900">
+        {isInitial ? 'Base de datos vacía' : 'Sin coincidencias'}
+      </h3>
+      <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto">
+        {isInitial 
+          ? 'Aún no hay empleados registrados en el sistema. Comience agregando su primer colaborador.' 
+          : 'No se encontraron empleados con los filtros actuales. Intente ajustar los criterios de búsqueda.'}
+      </p>
+      <div className="mt-6">
+        {isInitial ? (
+          <button
+            onClick={onAction}
+            className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            <LuPlus className="-ml-1 mr-2 h-5 w-5" />
+            Registrar Primer Empleado
+          </button>
+        ) : (
+          <button
+            onClick={onClear}
+            className="inline-flex items-center px-4 py-2 border border-slate-300 shadow-sm text-sm font-medium rounded-md text-slate-700 bg-white hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+          >
+            Limpiar todos los filtros
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
