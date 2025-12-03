@@ -10,7 +10,7 @@ import {
 import { FaMapMarkerAlt } from "react-icons/fa";
 
 import type { FormEvent, JSX } from "react";
-import type { Cliente } from "../../types/Client";
+import type { Cliente } from "../../types/clientes/Client";
 
 interface Props {
   state: Cliente;

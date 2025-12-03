@@ -28,6 +28,12 @@
   id_metodo_pago: number;
   monto: number;
   referencia: string;
+  numero_tarjeta?: string;
+  fecha_vencimiento?: string;
+  cvv?: string;
+  numero_transferencia?: string;
+  banco?: string;
+  numero_operacion?: string;
 }
 
 
