@@ -89,9 +89,12 @@ export default function InventoryAddProduct() {
       const almData = almRes.ok ? await almRes.json() : [];
       const provRawData = provRes.ok ? await provRes.json() : [];
 
+      console.log("Datos de proveedores recibidos:", provRawData); // <--- Agregamos este log para depurar
+
       const provData = provRawData.map((p: any) => ({
         id: p.id,
-        nombre: p.razonSocial
+        // CORRECCIÓN AQUÍ: Intentamos leer varias propiedades por si acaso
+        nombre: p.razonSocial || p.nombre || p.razon_social || p.name || "Sin Nombre"
       }));
 
       setCategorias(catData);
@@ -100,7 +103,7 @@ export default function InventoryAddProduct() {
 
     } catch (error) {
       console.error('Error al cargar opciones:', error);
-      setNotificationMessage('Error al cargar opciones iniciales. Revise la consola y el backend.');
+      setNotificationMessage('Error al cargar opciones iniciales.');
       setNotificationType('error');
       setShowNotification(true);
     } finally {
@@ -177,43 +180,41 @@ export default function InventoryAddProduct() {
   };
 
   // --- Función para guardar la imagen en la carpeta pública ---
-// --- Función para guardar la imagen en la carpeta pública ---
-const saveImageToPublicFolder = async (file: File): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const formData = new FormData();
-    formData.append('image', file);
-    
-    // Generar un nombre único para la imagen
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const fileExtension = file.name.split('.').pop() || 'jpg';
-    const fileName = `producto_${timestamp}_${randomString}.${fileExtension}`;
-    formData.append('fileName', fileName);
+  const saveImageToPublicFolder = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const formData = new FormData();
+      formData.append('image', file);
+      
+      const timestamp = Date.now();
+      const randomString = Math.random().toString(36).substring(2, 8);
+      const fileExtension = file.name.split('.').pop() || 'jpg';
+      const fileName = `producto_${timestamp}_${randomString}.${fileExtension}`;
+      formData.append('fileName', fileName);
 
-    console.log('Enviando imagen al backend:', fileName);
+      console.log('Enviando imagen al backend:', fileName);
 
-    fetch(`${API_BASE}/productos/upload-image`, {
-      method: 'POST',
-      body: formData,
-    })
-    .then(async response => {
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Error ${response.status}: ${errorText}`);
-      }
-      return response.json();
-    })
-    .then(data => {
-      console.log('Imagen subida exitosamente:', data);
-      // El backend devuelve la ruta relativa, por ejemplo: "/img/productos/producto_123456_abc123.jpg"
-      resolve(data.imagePath);
-    })
-    .catch(error => {
-      console.error('Error al guardar imagen:', error);
-      reject(error);
+      fetch(`${API_BASE}/productos/upload-image`, {
+        method: 'POST',
+        body: formData,
+      })
+      .then(async response => {
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Error ${response.status}: ${errorText}`);
+        }
+        return response.json();
+      })
+      .then(data => {
+        console.log('Imagen subida exitosamente:', data);
+        resolve(data.imagePath);
+      })
+      .catch(error => {
+        console.error('Error al guardar imagen:', error);
+        reject(error);
+      });
     });
-  });
-};
+  };
+
   const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
@@ -221,10 +222,8 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
       return;
     }
 
-    // Guardar el archivo para enviarlo después con el formulario
     setUploadedImageFile(file);
 
-    // Mostrar preview inmediatamente
     const reader = new FileReader();
     reader.onload = (e) => {
       setImagePreview(e.target?.result as string);
@@ -232,9 +231,7 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
     reader.readAsDataURL(file);
   };
 
-  // Generador de código de barras Code-128 (formato numérico simple para scanners)
   const generateBarcode = () => {
-    // Generar código numérico de 12 dígitos (compatible con EAN-13)
     const timestamp = Date.now().toString().slice(-8);
     const random = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
     const baseCode = timestamp + random;
@@ -258,25 +255,10 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
             <head>
               <title>Imprimir Código de Barras</title>
               <style>
-                body { 
-                  margin: 0; 
-                  padding: 20px; 
-                  font-family: Arial, sans-serif; 
-                  text-align: center;
-                }
-                .barcode-container { 
-                  margin: 20px auto; 
-                  max-width: 400px;
-                }
-                .barcode-info {
-                  margin-top: 10px;
-                  font-size: 14px;
-                  color: #333;
-                }
-                @media print {
-                  body { padding: 0; }
-                  .no-print { display: none; }
-                }
+                body { margin: 0; padding: 20px; font-family: Arial, sans-serif; text-align: center; }
+                .barcode-container { margin: 20px auto; max-width: 400px; }
+                .barcode-info { margin-top: 10px; font-size: 14px; color: #333; }
+                @media print { .no-print { display: none; } }
               </style>
             </head>
             <body>
@@ -309,7 +291,6 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
     setValidationErrors({});
 
     try {
-      // Primero subir la imagen si existe
       let imagenPath = '';
       if (uploadedImageFile) {
         try {
@@ -333,27 +314,23 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
         precioCompra: formData.precioCompra || 0.0,
         precioVenta: formData.precioVenta || 0.0,
         pesoKg: formData.pesoKg || 0.0,
-        imagen: imagenPath || '', // Usar la ruta de la imagen guardada
+        imagen: imagenPath || '',
       };
 
       const response = await fetch(`${API_BASE}/productos`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestData),
       });
 
       if (!response.ok) {
         const errorBody = await response.json();
-
         if (response.status === 400 && errorBody.errors) {
           setValidationErrors(errorBody.errors);
           setNotificationMessage("Error de validación. Revise los campos marcados.");
         } else {
           setNotificationMessage(errorBody.message || `Error al guardar: Código de estado ${response.status}`);
         }
-
         setNotificationType('error');
         setShowNotification(true);
         return;
@@ -384,22 +361,24 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
   if (loadingOptions) return <div className="p-6 text-center text-gray-500">Cargando datos de soporte...</div>;
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8">
+      
       {/* Notificaciones */}
       {showNotification && (
-        <div className={`fixed top-4 right-4 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50 animate-fade-in ${notificationType === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
-          {notificationType === 'success' ? <IoIosCheckmarkCircle className="w-5 h-5" /> : <IoIosWarning className="w-5 h-5" />}
-          <span>{notificationMessage}</span>
+        <div className={`fixed top-4 right-4 left-4 sm:left-auto text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 z-50 animate-fade-in ${notificationType === 'success' ? 'bg-green-500' : 'bg-red-500'}`}>
+          {/* CORRECCIÓN: shrink-0 en lugar de flex-shrink-0 */}
+          {notificationType === 'success' ? <IoIosCheckmarkCircle className="w-5 h-5 shrink-0" /> : <IoIosWarning className="w-5 h-5 shrink-0" />}
+          <span className="text-sm sm:text-base">{notificationMessage}</span>
         </div>
       )}
 
       {/* Modal de Cancelación */}
       {showCancelModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg max-w-md w-full m-auto">
             <div className="p-6">
               <div className="flex items-center gap-3 mb-4">
-                <div className="bg-yellow-100 p-2 rounded-full">
+                <div className="bg-yellow-100 p-2 rounded-full shrink-0">
                   <IoIosWarning className="w-6 h-6 text-yellow-600" />
                 </div>
                 <div>
@@ -407,16 +386,16 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                   <p className="text-sm text-gray-600">¿Estás seguro de que quieres cancelar? Se perderán todos los datos no guardados.</p>
                 </div>
               </div>
-              <div className="flex gap-3 justify-end">
+              <div className="flex flex-col-reverse sm:flex-row gap-3 justify-end">
                 <button
                   onClick={() => setShowCancelModal(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Continuar Editando
                 </button>
                 <button
                   onClick={handleCancel}
-                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                  className="w-full sm:w-auto px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
                 >
                   <IoIosWarning className="w-4 h-4" />
                   Sí, Cancelar
@@ -427,33 +406,35 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
         </div>
       )}
 
-      <div className="flex justify-between items-center mb-6">
+      {/* Header Responsivo */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <div className="flex items-center gap-3">
           <Link to="/inventario">
             <button className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <IoMdArrowBack className="w-5 h-5" />
+              <IoMdArrowBack className="w-6 h-6 text-gray-700" />
             </button>
           </Link>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Agregar Producto</h1>
-            <p className="text-gray-600">Complete la información del nuevo producto</p>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Agregar Producto</h1>
+            <p className="text-sm text-gray-600">Complete la información del nuevo producto</p>
           </div>
         </div>
       </div>
 
       <form id="product-form" onSubmit={handleSubmit}>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Columna lateral de Previsualización */}
-          <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+          
+          {/* Columna lateral de Previsualización: Primero en móvil, lateral en desktop */}
+          <div className="lg:col-span-1 space-y-6 order-1 lg:order-1">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <IoIosCube className="w-5 h-5" />
                 Vista Previa
               </h3>
-              {/* Lógica de Imagen/Preview */}
+              
               <div className="text-center mb-4">
                 {imagePreview ? (
-                  <div className="relative">
+                  <div className="relative inline-block">
                     <img
                       src={imagePreview}
                       alt="Vista previa"
@@ -466,7 +447,7 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                         setUploadedImageFile(null);
                         setFormData(prev => ({ ...prev, imagen: '' })); 
                       }}
-                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors transform translate-x-1/2 -translate-y-1/2"
+                      className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors transform translate-x-1/2 -translate-y-1/2 shadow-sm"
                     >
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -484,11 +465,11 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
               </div>
 
               <div
-                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors mb-4"
+                className="border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-blue-400 transition-colors mb-4 active:bg-gray-50"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <IoIosCloudUpload className="w-8 h-8 mx-auto text-gray-400 mb-2" />
-                <p className="text-sm text-gray-600 mb-2">Haz click para subir</p>
+                <p className="text-sm text-gray-600 mb-2">Toque para subir imagen</p>
                 <p className="text-xs text-gray-500">PNG, JPG hasta 5MB</p>
                 <input
                   ref={fileInputRef}
@@ -500,34 +481,35 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                 />
               </div>
 
-              {/* Información del producto - Valores del Estado */}
-              <div className="space-y-3">
+              {/* Información Resumen */}
+              <div className="space-y-3 bg-gray-50 p-3 rounded-lg">
                 <div>
-                  <h4 className="font-semibold text-gray-900">{formData.nombre || 'Nuevo Producto'}</h4>
-                  <p className="text-sm text-gray-600">Información básica</p>
+                  <h4 className="font-semibold text-gray-900 truncate">{formData.nombre || 'Nuevo Producto'}</h4>
+                  <p className="text-xs text-gray-500">Resumen rápido</p>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-2xl font-bold text-gray-900">S/{formData.precioVenta.toFixed(2)}</span>
-                  <span className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full text-xs font-medium">NUEVO</span>
+                  <span className="text-xl font-bold text-gray-900">S/{formData.precioVenta.toFixed(2)}</span>
+                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">NUEVO</span>
                 </div>
-                <div className="text-sm text-gray-600 space-y-1">
-                  <div>Stock Inicial: **{formData.stockInicial}** {formData.unidadMedida.toLowerCase()}</div>
-                  <div>SKU: **{formData.sku || 'Por asignar'}**</div>
-                  <div>Proveedor: **{selectedProveedorName}**</div>
-                  <div>Almacén: **{selectedAlmacenName}**</div>
-                  <div>Ubicación: **{formData.ubicacion || 'Por asignar'}**</div>
+                <div className="text-xs text-gray-600 space-y-1 pt-2 border-t border-gray-200">
+                  <div className="flex justify-between"><span>Stock:</span> <span className="font-medium">{formData.stockInicial}</span></div>
+                  <div className="flex justify-between"><span>SKU:</span> <span className="font-medium truncate max-w-[120px]">{formData.sku || '-'}</span></div>
+                  <div className="flex justify-between"><span>Almacén:</span> <span className="font-medium truncate max-w-[120px]">{selectedAlmacenName}</span></div>
+                  {/* CORRECCIÓN: Agregado el proveedor seleccionado para eliminar warning */}
+                  <div className="flex justify-between"><span>Prov:</span> <span className="font-medium truncate max-w-[120px]">{selectedProveedorName}</span></div>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Columna de Formulario Principal */}
-          <div className="lg:col-span-3 space-y-6">
+          <div className="lg:col-span-3 space-y-6 order-2 lg:order-2">
+            
             {/* SECCIÓN: Información Básica */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold mb-4">Información General</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Producto *</label>
                   <input
                     type="text"
@@ -539,6 +521,7 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                   />
                   {renderError('nombre')}
                 </div>
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoría *</label>
                   <select
@@ -555,8 +538,10 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                   </select>
                   {renderError('categoriaId')}
                 </div>
+
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  {/* CORRECCIÓN: Eliminado 'block' que estaba en conflicto con 'flex' */}
+                  <label className="text-sm font-medium text-gray-700 mb-1 flex justify-between items-center">
                     SKU *
                     <button
                       type="button"
@@ -564,7 +549,7 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                         const newSKU = generateSKU(formData.nombre);
                         setFormData(prev => ({ ...prev, sku: newSKU }));
                       }}
-                      className="ml-2 text-xs bg-gray-200 hover:bg-gray-300 px-2 py-1 rounded transition-colors"
+                      className="text-xs text-blue-600 hover:text-blue-800 underline"
                     >
                       Regenerar
                     </button>
@@ -578,10 +563,9 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                     className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.sku ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
                   {renderError('sku')}
-                  <p className="text-xs text-gray-500 mt-1">SKU generado automáticamente desde el nombre</p>
                 </div>
-                {/* Proveedor (Dropdown) */}
-                <div>
+
+                <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Proveedor *</label>
                   <select
                     name="proveedorId"
@@ -592,17 +576,14 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                   >
                     <option value="">Seleccionar proveedor</option>
                     {proveedores.map(prov => (
-                      <option
-                        key={prov.id}
-                        value={prov.id}
-                        className="text-black"
-                      >
+                      <option key={prov.id} value={prov.id} className="text-black">
                         {prov.nombre}
                       </option>
                     ))}
                   </select>
                   {renderError('proveedorId')}
                 </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                   <textarea
@@ -619,14 +600,14 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
             </div>
 
             {/* SECCIÓN: Código de Barras */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <IoIosBarcode className="w-5 h-5" />
                 Código de Barras
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Código de Barras *</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Código *</label>
                   <input
                     type="text"
                     name="codigoBarras"
@@ -637,13 +618,12 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                     className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.codigoBarras ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
                   />
                   {renderError('codigoBarras')}
-                  <p className="text-xs text-gray-500 mt-1">Ingrese el código de barras EAN-13 (12-13 dígitos)</p>
                 </div>
                 <div className="flex items-end">
                   <button
                     type="button"
                     onClick={generateBarcode}
-                    className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm"
+                    className="w-full md:w-auto bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm h-[42px]"
                   >
                     Generar Automático
                   </button>
@@ -653,23 +633,21 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
               {formData.codigoBarras && (
                 <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="text-center">
-                    {/* Imagen del código de barras generado por TEC-IT */}
                     {barcodeImageUrl && (
-                      <div className="mb-4">
+                      <div className="mb-4 overflow-hidden">
                         <img 
                           src={barcodeImageUrl} 
-                          alt="Código de Barras EAN-13" 
+                          alt="Código de Barras" 
                           className="mx-auto max-w-full h-auto border border-gray-300 rounded"
-                          style={{ maxHeight: '100px' }}
+                          style={{ maxHeight: '80px' }}
                         />
                       </div>
                     )}
-                    <div className="text-sm text-gray-600 font-mono tracking-widest mb-2">
+                    <div className="text-sm text-gray-600 font-mono tracking-widest break-all">
                       {formData.codigoBarras}
                     </div>
-                    <p className="text-xs text-gray-500 mb-4">Código de barras EAN-13 generado</p>
                   </div>
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-3">
                     <button
                       type="button"
                       onClick={copyBarcode}
@@ -685,39 +663,42 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                       Imprimir
                     </button>
                   </div>
-                  <div className="mt-3 text-xs text-gray-500 text-center">
-                    <p>Generado con <a href="https://www.tec-it.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">TEC-IT Barcode Generator</a></p>
-                  </div>
                 </div>
               )}
             </div>
 
-            {/* SECCIÓN: Precios y Stock */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            {/* SECCIÓN: Precios y Stock (Grilla mejorada para móvil) */}
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <IoIosCash className="w-5 h-5" />
                 Precios y Stock
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio Venta (S/) *</label>
-                  <input
-                    type="number" step="0.01" name="precioVenta"
-                    value={formData.precioVenta}
-                    onChange={handleChange}
-                    required
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.precioVenta ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio Venta *</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">S/</span>
+                    <input
+                      type="number" step="0.01" name="precioVenta"
+                      value={formData.precioVenta}
+                      onChange={handleChange}
+                      required
+                      className={`w-full border rounded-lg pl-8 pr-3 py-2 focus:ring-2 ${validationErrors.precioVenta ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    />
+                  </div>
                   {renderError('precioVenta')}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio Compra (S/)</label>
-                  <input
-                    type="number" step="0.01" name="precioCompra"
-                    value={formData.precioCompra}
-                    onChange={handleChange}
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.precioCompra ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Precio Compra</label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-2 text-gray-500">S/</span>
+                    <input
+                      type="number" step="0.01" name="precioCompra"
+                      value={formData.precioCompra}
+                      onChange={handleChange}
+                      className={`w-full border rounded-lg pl-8 pr-3 py-2 focus:ring-2 ${validationErrors.precioCompra ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    />
+                  </div>
                   {renderError('precioCompra')}
                 </div>
                 <div>
@@ -732,49 +713,45 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                   {renderError('stockInicial')}
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Mínimo *</label>
-                  <input
-                    type="number" name="stockMinimo"
-                    value={formData.stockMinimo}
-                    onChange={handleChange}
-                    required
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.stockMinimo ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
-                  />
-                  {renderError('stockMinimo')}
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Stock Máximo</label>
-                  <input
-                    type="number" name="stockMaximo"
-                    value={formData.stockMaximo}
-                    onChange={handleChange}
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.stockMaximo ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
-                  />
-                  {renderError('stockMaximo')}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mínimo / Máximo</label>
+                  <div className="flex gap-2">
+                    <input
+                      type="number" name="stockMinimo" placeholder="Min"
+                      value={formData.stockMinimo}
+                      onChange={handleChange}
+                      required
+                      className="w-1/2 border rounded-lg px-2 py-2 focus:ring-2 border-gray-300 focus:border-blue-500"
+                    />
+                    <input
+                      type="number" name="stockMaximo" placeholder="Max"
+                      value={formData.stockMaximo}
+                      onChange={handleChange}
+                      className="w-1/2 border rounded-lg px-2 py-2 focus:ring-2 border-gray-300 focus:border-blue-500"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
 
             {/* SECCIÓN: Especificaciones e Inventario */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="bg-white rounded-lg p-4 sm:p-6 shadow-sm border border-gray-200">
               <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
                 <IoIosCube className="w-5 h-5" />
-                Almacenamiento y Medidas
+                Almacenamiento
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Unidad</label>
                   <select
                     name="unidadMedida"
                     value={formData.unidadMedida}
                     onChange={handleChange}
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.unidadMedida ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 border-gray-300 focus:border-blue-500"
                   >
                     {unidadesMedida.map(u => (
                       <option key={u} value={u}>{u.charAt(0) + u.slice(1).toLowerCase()}</option>
                     ))}
                   </select>
-                  {renderError('unidadMedida')}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
@@ -782,57 +759,53 @@ const saveImageToPublicFolder = async (file: File): Promise<string> => {
                     type="number" step="0.001" name="pesoKg"
                     value={formData.pesoKg}
                     onChange={handleChange}
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.pesoKg ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 border-gray-300 focus:border-blue-500"
                   />
-                  {renderError('pesoKg')}
                 </div>
-                <div>
+                <div className="sm:col-span-2 lg:col-span-1">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Almacén *</label>
                   <select
                     name="almacenId"
                     value={formData.almacenId || ''}
                     onChange={handleChange}
                     required
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.almacenId ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 border-gray-300 focus:border-blue-500"
                   >
                     <option value="">Seleccionar almacén</option>
                     {almacenes.map(alm => (
                       <option key={alm.id} value={alm.id}>{alm.nombre}</option>
                     ))}
                   </select>
-                  {renderError('almacenId')}
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
+                <div className="sm:col-span-2 lg:col-span-3">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación Física</label>
                   <input
                     type="text" name="ubicacion"
                     value={formData.ubicacion}
                     onChange={handleChange}
-                    placeholder="Ej: A-12-B-04"
-                    className={`w-full border rounded-lg px-3 py-2 focus:ring-2 ${validationErrors.ubicacion ? 'border-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'}`}
+                    placeholder="Ej: Pasillo A, Estante 3"
+                    className="w-full border rounded-lg px-3 py-2 focus:ring-2 border-gray-300 focus:border-blue-500"
                   />
-                  {renderError('ubicacion')}
                 </div>
               </div>
             </div>
 
-            <div className="flex justify-end items-center pt-6">
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowCancelModal(true)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-blue-700 active:bg-blue-800 transition-all duration-200 transform active:scale-[0.98]"
-                >
-                  <IoIosSave className="w-5 h-5" />
-                  Guardar Producto
-                </button>
-              </div>
+            {/* Botones de Acción (Full width en móvil) */}
+            <div className="flex flex-col-reverse sm:flex-row justify-end items-center gap-3 pt-6 pb-4">
+              <button
+                type="button"
+                onClick={() => setShowCancelModal(true)}
+                className="w-full sm:w-auto px-6 py-2.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors font-medium"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-full sm:w-auto bg-blue-600 text-white px-6 py-2.5 rounded-lg flex items-center justify-center gap-2 hover:bg-blue-700 active:bg-blue-800 transition-all font-medium shadow-sm"
+              >
+                <IoIosSave className="w-5 h-5" />
+                Guardar Producto
+              </button>
             </div>
           </div>
         </div>

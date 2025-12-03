@@ -8,4 +8,5 @@ import java.util.List;
 @Repository
 public interface MovimientoInventarioRepository extends JpaRepository<MovimientoInventario, Integer> {
     List<MovimientoInventario> findByProductoId(Integer productoId);
+    void deleteByProductoId(Integer idProducto);
 }
