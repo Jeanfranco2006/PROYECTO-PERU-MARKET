@@ -13,6 +13,7 @@ import EmployeeCard from "./EmployeeCards";
 import EmployeeForm from "./EmployeeForm";
 import DeleteModal from "./EmployeeDeleteModal";
 import DepartmentForm from "./DepartmentForm";
+import { useState } from "react";
 
 export default function AppEmployees() {
   const {
@@ -34,33 +35,56 @@ export default function AppEmployees() {
     isDepFormVisible,
     deletingEmployee,
     formEmployee,
+    formDepartment,
+    closeDeleteModal,
     openForm,
     closeForm,
     openDepartmentForm,
     closeDepartmentForm,
     setDeletingEmployee,
     setFormEmployeeField,
+    setFormDepartmentField,
   } = useModalManagement();
 
   // --- Lógica de Guardado ---
   const handleSaveEmployeeAndClose = async (emp: Employee): Promise<void> => {
     const success = await handleSaveEmployee(emp);
-    if (success) closeForm();
+    if (success) {
+      closeForm();
+    }
   };
 
   const handleSaveDepartmentAndClose = async (dep: Departament): Promise<void> => {
     const success = await handleSaveDepartment(dep);
-    if (success) closeDepartmentForm();
+    if (success) {
+      closeDepartmentForm();
+    }
   };
 
   const handleDeleteEmployeeAndClose = async (): Promise<void> => {
     if (!deletingEmployee?.empleadoId) return;
     const success = await handleDeleteEmployee(deletingEmployee.empleadoId);
-    if (success) setDeletingEmployee(null);
+    if (success) {
+      setDeletingEmployee(null);
+    }
   };
 
-  const handleConfirmDelete = (): void => {
-    handleDeleteEmployeeAndClose();
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDelete = async (): Promise<void> => {
+    if (!deletingEmployee?.empleadoId) return;
+    
+    setDeleting(true);
+    try {
+      const success = await handleDeleteEmployee(deletingEmployee.empleadoId);
+      if (success) {
+        setDeletingEmployee(null);
+      }
+    } catch (error) {
+      console.error('Error al eliminar:', error);
+    } finally {
+      setDeleting(false);
+    }
   };
 
   // --- Skeleton Loading ---
@@ -70,11 +94,15 @@ export default function AppEmployees() {
         <div className="max-w-7xl mx-auto space-y-8">
           <div className="h-12 bg-slate-200 rounded w-1/3 mb-8"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => <div key={i} className="h-28 bg-slate-200 rounded-xl"></div>)}
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-28 bg-slate-200 rounded-xl"></div>
+            ))}
           </div>
           <div className="h-16 bg-slate-200 rounded-xl"></div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => <div key={i} className="h-72 bg-slate-200 rounded-xl"></div>)}
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="h-72 bg-slate-200 rounded-xl"></div>
+            ))}
           </div>
         </div>
       </div>
@@ -83,9 +111,8 @@ export default function AppEmployees() {
 
   // --- Render Principal ---
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20 selection:bg-indigo-100 selection:text-indigo-700">
+    <div className="min-h-screen bg-slate-50 text-slate-900 font-sans pb-20">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 space-y-8">
-
         {/* Encabezado */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 pb-6 border-b border-slate-200/60">
           <div>
@@ -102,7 +129,7 @@ export default function AppEmployees() {
 
           <div className="flex flex-col sm:flex-row gap-3">
             <ActionButton 
-              onClick={openDepartmentForm} 
+              onClick={() => openDepartmentForm()} 
               icon={<HiOutlineOfficeBuilding className="w-5 h-5 mr-2 text-slate-500" />}
               label="Nuevo Departamento"
               variant="secondary"
@@ -118,9 +145,23 @@ export default function AppEmployees() {
 
         {/* KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          <StatCard title="Total Empleados" value={stats.total} icon="users" />
-          <StatCard title="Activos" value={stats.activos} color="emerald" icon="check" />
-          <StatCard title="Filtrados" value={stats.filtered} color="indigo" icon="filter" />
+          <StatCard 
+            title="Total Empleados" 
+            value={stats.total} 
+            icon="users" 
+          />
+          <StatCard 
+            title="Activos" 
+            value={stats.activos} 
+            color="emerald" 
+            icon="check" 
+          />
+          <StatCard 
+            title="Filtrados" 
+            value={stats.filtered} 
+            color="indigo" 
+            icon="filter" 
+          />
         </div>
 
         {/* Filtros */}
@@ -128,7 +169,10 @@ export default function AppEmployees() {
           <div className="p-5">
             <div className="flex flex-col lg:flex-row gap-6 lg:items-start justify-between">
               <div className="flex-1 w-full">
-                <EmployeeSearchBar filters={filters} onChange={handleFilterChange} />
+                <EmployeeSearchBar 
+                  filters={filters} 
+                  onChange={handleFilterChange} 
+                />
               </div>
               <div className="flex flex-col items-end gap-2 min-w-max pt-1">
                 <div className="text-sm text-slate-500 font-medium">
@@ -155,7 +199,7 @@ export default function AppEmployees() {
           <div className="rounded-lg bg-red-50 p-4 border border-red-100 flex items-start gap-3 animate-fade-in">
             <FiAlertCircle className="h-5 w-5 text-red-500 mt-0.5" />
             <div>
-              <h3 className="text-sm font-semibold text-red-800">Error de conexión</h3>
+              <h3 className="text-sm font-semibold text-red-800">Error</h3>
               <p className="mt-1 text-sm text-red-600">{error}</p>
             </div>
           </div>
@@ -181,51 +225,57 @@ export default function AppEmployees() {
           </div>
         )}
 
-        {/* --- MODALES OPTIMIZADOS --- */}
+        {/* --- MODALES --- */}
 
         {/* Modal Empleado */}
         {isFormVisible && formEmployee && (
-          <div className="fixed inset-0 z-[100] overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            {/* Contenedor Flex para centrado perfecto */}
+          <div className="fixed inset-0 z-[100] overflow-y-auto">
             <div className="flex min-h-screen items-center justify-center p-4 text-center sm:p-0">
-              
-              {/* Backdrop con blur */}
               <div 
                 className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" 
                 onClick={closeForm}
               ></div>
-
-              {/* Panel del Modal */}
+              
               <div className="relative transform overflow-hidden rounded-2xl bg-white text-left shadow-2xl transition-all sm:w-full sm:max-w-4xl max-h-[90vh] flex flex-col">
-                 {/* Botón flotante de cerrar para móviles/tablets */}
-                 <button 
+                <button 
                   onClick={closeForm}
                   className="absolute top-4 right-4 z-10 p-2 bg-white/80 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors sm:hidden"
-                 >
-                   <LuX className="w-5 h-5" />
-                 </button>
+                >
+                  <LuX className="w-5 h-5" />
+                </button>
 
-                 <EmployeeForm
-                   state={formEmployee}
-                   departamentos={departamentos}
-                   onCancel={closeForm}
-                   onSave={handleSaveEmployeeAndClose}
-                   setField={setFormEmployeeField}
-                 />
+                <EmployeeForm
+                  state={formEmployee}
+                  departamentos={departamentos}
+                  onCancel={closeForm}
+                  onSave={handleSaveEmployeeAndClose}
+                  setField={setFormEmployeeField}
+                />
               </div>
             </div>
           </div>
         )}
 
-        {/* Modal Departamento (Simplificado visualmente) */}
-        {isDepFormVisible && (
+        {/* Modal Departamento */}
+        {isDepFormVisible && formDepartment && (
           <div className="fixed inset-0 z-[100] overflow-y-auto">
-             <div className="flex min-h-screen items-center justify-center p-4">
-              <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={closeDepartmentForm}></div>
-              <div className="relative w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-6 text-left shadow-xl transition-all">
+            <div className="flex min-h-screen items-center justify-center p-4">
+              <div 
+                className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm" 
+                onClick={closeDepartmentForm}
+              ></div>
+              
+              <div className="relative w-full max-w-lg transform overflow-hidden rounded-2xl bg-white p-0 text-left shadow-xl transition-all">
+                <button 
+                  onClick={closeDepartmentForm}
+                  className="absolute top-4 right-4 z-10 p-2 bg-white/80 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors sm:hidden"
+                >
+                  <LuX className="w-5 h-5" />
+                </button>
+                
                 <DepartmentForm
-                  state={{ id: undefined, nombre: "", descripcion: "" }}
-                  setField={() => {}}
+                  state={formDepartment}
+                  setField={setFormDepartmentField}
                   onCancel={closeDepartmentForm}
                   onSave={handleSaveDepartmentAndClose}
                 />
@@ -235,13 +285,16 @@ export default function AppEmployees() {
         )}
 
         {/* Modal Eliminación */}
-        <DeleteModal
-          visible={!!deletingEmployee}
-          message="Dar de baja empleado"
-          subMessage={`¿Está seguro que desea eliminar a ${deletingEmployee?.persona.nombres}? Esta acción no se puede deshacer.`}
-          onCancel={() => setDeletingEmployee(null)}
-          onConfirm={handleConfirmDelete}
-        />
+        {deletingEmployee && (
+          <DeleteModal
+      visible={!!deletingEmployee}
+      message="Dar de baja empleado"
+      subMessage={`¿Está seguro que desea eliminar permanentemente a ${deletingEmployee.persona.nombres} ${deletingEmployee.persona.apellidoPaterno}? Esta acción no se puede deshacer.`}
+      onCancel={() => setDeletingEmployee(null)}
+      onConfirm={handleConfirmDelete}
+      loading={deleting}
+    />
+        )}
       </div>
     </div>
   );
@@ -257,7 +310,10 @@ const ActionButton = ({ onClick, icon, label, variant }: any) => {
   };
   
   return (
-    <button onClick={onClick} className={`${baseClass} ${variant === 'primary' ? variants.primary : variants.secondary}`}>
+    <button 
+      onClick={onClick} 
+      className={`${baseClass} ${variant === 'primary' ? variants.primary : variants.secondary}`}
+    >
       {icon} {label}
     </button>
   );
@@ -291,14 +347,26 @@ const EmptyState = ({ isInitial, onAction, onClear }: any) => (
     <div className="mx-auto h-16 w-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
       {isInitial ? <LuPlus className="h-8 w-8 text-slate-400" /> : <LuFilter className="h-8 w-8 text-slate-400" />}
     </div>
-    <h3 className="mt-2 text-lg font-semibold text-slate-900">{isInitial ? 'Base de datos vacía' : 'Sin coincidencias'}</h3>
+    <h3 className="mt-2 text-lg font-semibold text-slate-900">
+      {isInitial ? 'Base de datos vacía' : 'Sin coincidencias'}
+    </h3>
     <p className="mt-1 text-sm text-slate-500 max-w-sm mx-auto mb-6">
       {isInitial ? 'Comience agregando su primer colaborador al sistema.' : 'No se encontraron empleados con los filtros actuales.'}
     </p>
     {isInitial ? (
-      <ActionButton onClick={onAction} icon={<LuPlus className="w-5 h-5 mr-2" />} label="Registrar Empleado" variant="primary" />
+      <ActionButton 
+        onClick={onAction} 
+        icon={<LuPlus className="w-5 h-5 mr-2" />} 
+        label="Registrar Empleado" 
+        variant="primary" 
+      />
     ) : (
-      <button onClick={onClear} className="text-indigo-600 font-medium hover:text-indigo-800 text-sm">Limpiar filtros</button>
+      <button 
+        onClick={onClear} 
+        className="text-indigo-600 font-medium hover:text-indigo-800 text-sm"
+      >
+        Limpiar filtros
+      </button>
     )}
   </div>
 );

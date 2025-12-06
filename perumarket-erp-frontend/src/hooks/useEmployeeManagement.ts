@@ -1,156 +1,178 @@
-// hooks/useEmployeeManagement.ts
-import { useState, useEffect, useCallback } from 'react';
-import type { Employee, Departament } from '../types/Employee';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { EmployeeService, DepartmentService } from '../services/employeeService';
+import type { Employee, Departament, EmployeeFilters, EmployeeStats } from '../types/Employee';
+
+const initialFilters: EmployeeFilters = {
+  texto: '',
+  dni: '',
+  estado: ''
+};
 
 export const useEmployeeManagement = () => {
-  const [employees, setEmployees] = useState<Employee[]>([]);
+  // Estados
   const [departamentos, setDepartamentos] = useState<Departament[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [filters, setFilters] = useState({
-    texto: '',
-    dni: '',
-    estado: '',
-  });
+  const [filters, setFilters] = useState<EmployeeFilters>(initialFilters);
 
   // Cargar datos iniciales
-  useEffect(() => {
-    loadData();
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Cargar en paralelo
+      const [deptsData, empsData] = await Promise.all([
+        DepartmentService.getAllDepartments(),
+        EmployeeService.getAllEmployees()
+      ]);
+      
+      setDepartamentos(deptsData);
+      setEmployees(empsData);
+    } catch (err: any) {
+      setError(err.message || 'Error al cargar datos');
+      console.error('Error loading data:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const loadData = async () => {
-    setLoading(true);
-    try {
-      const [emps, deps] = await Promise.all([
-        EmployeeService.getAllEmployees(),
-        DepartmentService.getAllDepartments()
-      ]);
-      setEmployees(emps);
-      setDepartamentos(deps);
-      setError(null);
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Inicializar
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-  // Filtrar empleados
-  const filteredEmployees = employees.filter(emp => {
-    const { texto, dni, estado } = filters;
-    const nombreCompleto = `${emp.persona.nombres} ${emp.persona.apellidoPaterno} ${emp.persona.apellidoMaterno || ''}`.toLowerCase();
-    
-    if (texto && !nombreCompleto.includes(texto.toLowerCase())) return false;
-    if (dni && !emp.persona.numeroDocumento.includes(dni)) return false;
-    if (estado && emp.estado !== estado) return false;
-    
-    return true;
-  });
+  // Filtrado de empleados
+  const filteredEmployees = useMemo(() => {
+    return employees.filter(emp => {
+      // Filtro por texto (busca en nombres, apellidos, puesto)
+      if (filters.texto) {
+        const searchText = filters.texto.toLowerCase();
+        const fullName = `${emp.persona.nombres} ${emp.persona.apellidoPaterno} ${emp.persona.apellidoMaterno}`.toLowerCase();
+        const matches = 
+          fullName.includes(searchText) ||
+          emp.puesto.toLowerCase().includes(searchText) ||
+          emp.persona.correo.toLowerCase().includes(searchText);
+        if (!matches) return false;
+      }
+
+      // Filtro por DNI
+      if (filters.dni && !emp.persona.numeroDocumento.includes(filters.dni)) {
+        return false;
+      }
+
+      // Filtro por estado
+      if (filters.estado && emp.estado !== filters.estado) {
+        return false;
+      }
+
+      return true;
+    });
+  }, [employees, filters]);
 
   // Estadísticas
-  const stats = {
-    total: employees.length,
-    activos: employees.filter(e => e.estado === 'ACTIVO').length,
-    filtered: filteredEmployees.length,
-  };
+  const stats: EmployeeStats = useMemo(() => {
+    const total = employees.length;
+    const activos = employees.filter(e => e.estado === 'ACTIVO').length;
+    const inactivos = employees.filter(e => e.estado === 'INACTIVO').length;
+    const filtered = filteredEmployees.length;
 
-  // Handler para guardar empleado
+    return { total, activos, inactivos, filtered };
+  }, [employees, filteredEmployees]);
+
+  // Handlers
+  const handleFilterChange = useCallback((field: keyof EmployeeFilters, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  }, []);
+
+  const clearFilters = useCallback(() => {
+    setFilters(initialFilters);
+  }, []);
+
   const handleSaveEmployee = async (emp: Employee): Promise<boolean> => {
-    setLoading(true);
     try {
-      const savedEmployee = await EmployeeService.saveEmployee(emp);
+      setError(null);
+      const savedEmp = await EmployeeService.saveEmployee(emp);
       
-      // Actualizar estado local
+      // Actualizar lista de empleados
       setEmployees(prev => {
-        if (savedEmployee.empleadoId) {
-          return prev.map(e => 
-            e.empleadoId === savedEmployee.empleadoId ? savedEmployee : e
-          );
+        if (emp.empleadoId) {
+          // Edición
+          return prev.map(e => e.empleadoId === emp.empleadoId ? savedEmp : e);
         } else {
-          return [...prev, savedEmployee];
+          // Nuevo
+          return [...prev, savedEmp];
         }
       });
       
-      setError(null);
       return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al guardar empleado';
-      setError(errorMessage);
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar empleado');
       return false;
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Handler para eliminar empleado
   const handleDeleteEmployee = async (empleadoId: number): Promise<boolean> => {
-    setLoading(true);
     try {
-      const success = await EmployeeService.deleteEmployee(empleadoId);
-      if (success) {
-        setEmployees(prev => prev.filter(emp => emp.empleadoId !== empleadoId));
-        setError(null);
-        return true;
-      }
+      await EmployeeService.deleteEmployee(empleadoId);
+      
+      // Remover de la lista
+      setEmployees(prev => prev.filter(e => e.empleadoId !== empleadoId));
+      
+      return true;
+    } catch (err: any) {
+      setError(err.message || 'Error al eliminar empleado');
       return false;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al eliminar empleado';
-      setError(errorMessage);
-      return false;
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Handler para guardar departamento
   const handleSaveDepartment = async (dep: Departament): Promise<boolean> => {
-    setLoading(true);
     try {
-      const savedDepartment = await DepartmentService.saveDepartment(dep);
+      setError(null);
+      const savedDep = await DepartmentService.saveDepartment(dep);
       
+      // Actualizar lista de departamentos
       setDepartamentos(prev => {
-        if (savedDepartment.id) {
-          return prev.map(d => 
-            d.id === savedDepartment.id ? savedDepartment : d
-          );
+        if (dep.id) {
+          // Edición
+          return prev.map(d => d.id === dep.id ? savedDep : d);
         } else {
-          return [...prev, savedDepartment];
+          // Nuevo
+          return [...prev, savedDep];
         }
       });
       
-      setError(null);
       return true;
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Error al guardar departamento';
-      setError(errorMessage);
+    } catch (err: any) {
+      setError(err.message || 'Error al guardar departamento');
       return false;
-    } finally {
-      setLoading(false);
     }
-  };
-
-  const handleFilterChange = (key: string, value: string) => {
-    setFilters(prev => ({ ...prev, [key]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({ texto: '', dni: '', estado: '' });
   };
 
   return {
-    employees,
+    // Estados
     departamentos,
+    employees,
     loading,
     error,
     filters,
-    stats,
+    
+    // Datos procesados
     filteredEmployees,
+    stats,
+    
+    // Handlers
     handleFilterChange,
     clearFilters,
     handleSaveEmployee,
     handleDeleteEmployee,
     handleSaveDepartment,
+    
+    // Para recargar datos si es necesario
+    refreshData: loadData
   };
 };

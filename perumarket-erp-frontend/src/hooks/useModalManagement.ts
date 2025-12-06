@@ -1,104 +1,70 @@
-import { useState, useRef, useEffect } from 'react';
-import type { Employee, Persona } from '../types/Employee';
-
-const getInitialEmployeeState = (): Employee => ({
-    empleadoId: undefined,
-    persona: {
-      id: undefined,
-      tipoDocumento: "DNI",
-      numeroDocumento: "",
-      nombres: "",
-      apellidoPaterno: "",
-      apellidoMaterno: "",
-      correo: "",
-      telefono: "",
-      direccion: "",
-      fechaNacimiento: "",
-    },
-    departamento: null,
-    puesto: "",
-    sueldo: 0,
-    fechaContratacion: new Date().toISOString().substring(0, 10),
-    estado: "ACTIVO",
-    foto: "",
-    cv: "",
-});
+// En useModalManagement.ts (o agregar en tu hook existente)
+import { useState } from 'react';
+import type { Employee, Departament } from '../types/Employee';
 
 export const useModalManagement = () => {
   const [isFormVisible, setIsFormVisible] = useState(false);
   const [isDepFormVisible, setIsDepFormVisible] = useState(false);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
   const [formEmployee, setFormEmployee] = useState<Employee | null>(null);
-  
-  // Referencia para mantener las URLs blob activas
-  const blobUrlsRef = useRef<Set<string>>(new Set());
-
-  // Limpiar URLs blob cuando se desmonta
-  useEffect(() => {
-    return () => {
-      cleanupBlobUrls();
-    };
-  }, []);
-
-  const cleanupBlobUrls = () => {
-    blobUrlsRef.current.forEach(url => {
-      if (url.startsWith('blob:')) {
-        URL.revokeObjectURL(url);
-      }
-    });
-    blobUrlsRef.current.clear();
-  };
+  const [formDepartment, setFormDepartment] = useState<Departament>({
+    id: undefined,
+    nombre: "",
+    descripcion: ""
+  });
 
   const openForm = (emp?: Employee) => {
-    // Limpiar URLs blob anteriores
-    cleanupBlobUrls();
-    
-    // Crear nueva copia del empleado sin URLs blob
-    const employeeToEdit = emp ? { 
-      ...emp,
-      foto: emp.foto && !emp.foto.startsWith('blob:') ? emp.foto : ""
-    } : getInitialEmployeeState();
-    
-    setFormEmployee(employeeToEdit);
+    setFormEmployee(emp || {
+      empleadoId: undefined,
+      persona: {
+        tipoDocumento: "DNI",
+        numeroDocumento: "",
+        nombres: "",
+        apellidoPaterno: "",
+        apellidoMaterno: "",
+        correo: "",
+        telefono: "",
+        fechaNacimiento: "",
+        direccion: ""
+      },
+      departamento: null,
+      puesto: "",
+      sueldo: 0,
+      fechaContratacion: new Date().toISOString().split('T')[0],
+      estado: "ACTIVO",
+      foto: "",
+      cv: ""
+    });
     setIsFormVisible(true);
   };
 
-  const closeForm = () => {
-    // Limpiar URLs blob al cerrar
-    cleanupBlobUrls();
-    setIsFormVisible(false);
-    setFormEmployee(null);
-  };
-
-  const openDepartmentForm = () => {
+  const openDepartmentForm = (dep?: Departament) => {
+    setFormDepartment(dep || { id: undefined, nombre: "", descripcion: "" });
     setIsDepFormVisible(true);
   };
 
-  const closeDepartmentForm = () => {
-    setIsDepFormVisible(false);
-  };
-
   const setFormEmployeeField = (field: string, value: any) => {
-    setFormEmployee((prev) => {
-      if (!prev) return null;
-
-      // Manejar campos anidados
-      if (field.startsWith("persona.")) {
-        const key = field.replace("persona.", "") as keyof Persona;
+    setFormEmployee(prev => {
+      if (!prev) return prev;
+      if (field.includes('.')) {
+        const [parent, child] = field.split('.');
         return {
           ...prev,
-          persona: { ...prev.persona, [key]: value },
-        } as Employee;
+          [parent]: {
+            ...(prev as any)[parent],
+            [child]: value
+          }
+        };
       }
-      
-      // Si es un campo de archivo (foto blob)
-      if (field === "foto" && typeof value === "string" && value.startsWith("blob:")) {
-        // Registrar la nueva URL blob
-        blobUrlsRef.current.add(value);
-      }
-      
-      return { ...prev, [field]: value } as Employee;
+      return { ...prev, [field]: value };
     });
+  };
+
+  const setFormDepartmentField = (field: keyof Departament, value: any) => {
+    setFormDepartment(prev => ({
+      ...prev,
+      [field]: value
+    }));
   };
 
   return {
@@ -106,11 +72,14 @@ export const useModalManagement = () => {
     isDepFormVisible,
     deletingEmployee,
     formEmployee,
+    formDepartment, // ← NUEVO
     openForm,
-    closeForm,
+    closeForm: () => setIsFormVisible(false),
     openDepartmentForm,
-    closeDepartmentForm,
+    closeDepartmentForm: () => setIsDepFormVisible(false),
     setDeletingEmployee,
     setFormEmployeeField,
+    closeDeleteModal: () => setDeletingEmployee(null),
+    setFormDepartmentField // ← NUEVO
   };
 };
