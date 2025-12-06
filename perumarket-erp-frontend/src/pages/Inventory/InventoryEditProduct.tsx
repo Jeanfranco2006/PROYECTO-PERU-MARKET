@@ -31,7 +31,8 @@ interface ProductState {
 }
 const initialProductState: ProductState = {
     id: null, nombre: '', descripcion: '', sku: '',
-    precioVenta: 0.00, precioCompra: 0.00, unidadMedida: 'UNIDAD',
+    precioVenta: 0.00, precioCompra: 0.00, 
+    unidadMedida: 'KG', // CAMBIO 1: Inicializado en KG
     pesoKg: 0.000, imagen: '', estado: 'ACTIVO',
     stockActual: 0, stockMinimo: 10, stockMaximo: 1000,
     ubicacionPrincipal: '', codigoBarrasPrincipal: '',
@@ -197,6 +198,8 @@ const InventoryEditProduct: React.FC = () => {
                     imagen: data.imagen || '',
                     almacenId: 1, proveedorId: 1,
 
+                    unidadMedida: 'KG',
+
                     // Asignamos el ID corregido
                     categoriaId: categoriaIdDetectado,
                 }));
@@ -287,7 +290,10 @@ const InventoryEditProduct: React.FC = () => {
                 sku: product.sku,
                 precioVenta: product.precioVenta,
                 precioCompra: product.precioCompra,
-                unidadMedida: product.unidadMedida,
+                
+                // CAMBIO 3: Asegurar que se envíe KG al guardar
+                unidadMedida: 'KG',
+                
                 pesoKg: product.pesoKg,
                 imagen: imagenPath,
                 requiereCodigoBarras: product.requiereCodigoBarras,
@@ -821,18 +827,19 @@ const InventoryEditProduct: React.FC = () => {
 
                             <h3 className="text-lg font-semibold mb-4 flex items-center gap-2"><IoIosArchive className="h-5 w-5" />Especificaciones</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {/* Unidad de Medida */}
+                                
+                                {/* CAMBIO 4: Unidad de Medida ESTÁTICA */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Unidad de Medida</label>
-                                    <select
-                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500"
+                                    <input
+                                        type="text"
                                         name="unidadMedida"
-                                        value={product.unidadMedida ?? ''}
-                                        onChange={handleChange}
-                                    >
-                                        <option value="UNIDAD">Unidad</option><option value="CAJA">Caja</option><option value="PAQUETE">Paquete</option><option value="KG">Kg (Kilogramo)</option><option value="LITRO">Litro</option>
-                                    </select>
+                                        value="KG"
+                                        readOnly
+                                        className="w-full border border-gray-300 rounded-lg px-3 py-2 bg-gray-100 text-gray-500 cursor-not-allowed focus:ring-0"
+                                    />
                                 </div>
+                                
                                 {/* Peso (kg) */}
                                 <div><label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label><input className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500" type="number" step={0.001} value={product.pesoKg} onChange={handleChange} name="pesoKg" /></div>
                                 {/* Ubicación */}
