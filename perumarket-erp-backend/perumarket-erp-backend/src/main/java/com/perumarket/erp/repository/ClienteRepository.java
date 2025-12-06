@@ -1,6 +1,7 @@
 package com.perumarket.erp.repository;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -8,11 +9,12 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.perumarket.erp.models.entity.Cliente;
+import com.perumarket.erp.models.entity.Persona;
 
 @Repository
 public interface ClienteRepository extends JpaRepository<Cliente, Long> {
 
-    // Buscar por tipo (NUEVO)
+    // Buscar por tipo
     List<Cliente> findByTipo(Cliente.TipoCliente tipo);
 
     // Buscar por nombre completo
@@ -24,7 +26,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
     // Buscar por DNI
     List<Cliente> findByPersonaNumeroDocumentoContaining(String numeroDocumento);
 
-    // Filtros combinados (igual que empleados, pero con tipo)
+    // Filtros combinados
     @Query("""
         SELECT c FROM Cliente c 
         WHERE 
@@ -40,4 +42,7 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
             @Param("dni") String dni,
             @Param("tipo") Cliente.TipoCliente tipo
     );
+
+    // NUEVO MÉTODO: Buscar cliente por persona
+    Optional<Cliente> findByPersona(Persona persona);
 }
