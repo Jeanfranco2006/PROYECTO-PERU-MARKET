@@ -78,35 +78,35 @@ export default function Proveedores() {
         
         {/* STATS CARDS */}
         <div className="w-full xl:flex-1 flex justify-center mt-2 xl:mt-0">
-             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-4xl">
-                <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 hover:shadow-md transition-all">
-                    <div className="bg-slate-100 p-2.5 rounded-lg text-slate-600 shrink-0"><FaLayerGroup size={18}/></div>
-                    <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Total</p>
-                        <p className="text-xl font-black text-slate-900 leading-none truncate">{proveedores.length}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-3 rounded-xl border border-slate-200  shadow-sm flex items-center gap-3 hover:shadow-md transition-all">
-                    <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600 shrink-0"><FaCheckCircle size={18}/></div>
-                    <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-emerald-500 uppercase leading-none mb-1">Activos</p>
-                        <p className="text-xl font-black text-emerald-700 leading-none truncate">{totalActivos}</p>
-                    </div>
-                </div>
-                <div className="bg-white p-3 rounded-xl border border-slate-200  shadow-sm flex items-center gap-3 hover:shadow-md transition-all">
-                    <div className="bg-red-50 p-2.5 rounded-lg text-red-500 shrink-0"><FaTimesCircle size={18}/></div>
-                    <div className="min-w-0">
-                        <p className="text-[10px] font-bold text-red-400 uppercase leading-none mb-1">Inactivos</p>
-                        <p className="text-xl font-black text-red-700 leading-none truncate">{totalInactivos}</p>
-                    </div>
-                </div>
-             </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-4xl">
+                 <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 hover:shadow-md transition-all">
+                     <div className="bg-slate-100 p-2.5 rounded-lg text-slate-600 shrink-0"><FaLayerGroup size={18}/></div>
+                     <div className="min-w-0">
+                         <p className="text-[10px] font-bold text-slate-400 uppercase leading-none mb-1">Total</p>
+                         <p className="text-xl font-black text-slate-900 leading-none truncate">{proveedores.length}</p>
+                     </div>
+                 </div>
+                 <div className="bg-white p-3 rounded-xl border border-slate-200  shadow-sm flex items-center gap-3 hover:shadow-md transition-all">
+                     <div className="bg-emerald-50 p-2.5 rounded-lg text-emerald-600 shrink-0"><FaCheckCircle size={18}/></div>
+                     <div className="min-w-0">
+                         <p className="text-[10px] font-bold text-emerald-500 uppercase leading-none mb-1">Activos</p>
+                         <p className="text-xl font-black text-emerald-700 leading-none truncate">{totalActivos}</p>
+                     </div>
+                 </div>
+                 <div className="bg-white p-3 rounded-xl border border-slate-200  shadow-sm flex items-center gap-3 hover:shadow-md transition-all">
+                     <div className="bg-red-50 p-2.5 rounded-lg text-red-500 shrink-0"><FaTimesCircle size={18}/></div>
+                     <div className="min-w-0">
+                         <p className="text-[10px] font-bold text-red-400 uppercase leading-none mb-1">Inactivos</p>
+                         <p className="text-xl font-black text-red-700 leading-none truncate">{totalInactivos}</p>
+                     </div>
+                 </div>
+              </div>
         </div>
 
         <div className="w-full xl:w-auto flex justify-center xl:justify-end mt-2 xl:mt-0">
-             <button onClick={openCreateModal} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg transition-all font-bold flex items-center justify-center gap-2 uppercase tracking-wide text-xs md:text-sm">
-                <FaPlus/> <span className="hidden sm:inline">Nuevo Proveedor</span><span className="sm:hidden">Nuevo</span>
-             </button>
+              <button onClick={openCreateModal} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl shadow-lg transition-all font-bold flex items-center justify-center gap-2 uppercase tracking-wide text-xs md:text-sm">
+                 <FaPlus/> <span className="hidden sm:inline">Nuevo Proveedor</span><span className="sm:hidden">Nuevo</span>
+              </button>
         </div>
       </div>
 
@@ -114,7 +114,9 @@ export default function Proveedores() {
       <div className="bg-white p-2 rounded-xl shadow-sm border border-slate-200 mb-6 flex flex-col lg:flex-row gap-3">
          <form onSubmit={handleSearch} className="flex-1 relative w-full">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"><FaSearch className="text-slate-400" /></div>
-            <input type="text" placeholder="Buscar..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-9 pr-3 py-2.5 bg-slate-50 border-transparent rounded-lg text-sm font-bold focus:bg-white focus:border-slate-300 focus:ring-0 transition-all"/>
+            
+            {/* AQUÍ ESTÁ EL CAMBIO SOLICITADO */}
+            <input type="text" placeholder="Buscar por RUC o Razón Social" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="block w-full pl-9 pr-3 py-2.5 bg-slate-50 border-transparent rounded-lg text-sm font-bold focus:bg-white focus:border-slate-300 focus:ring-0 transition-all"/>
          </form>
          <div className="flex bg-slate-100 p-1 rounded-lg shrink-0 overflow-x-auto">
             <button onClick={() => setFilterStatus('ALL')} className={`px-3 py-2 rounded-md text-[10px] font-bold uppercase transition-all ${filterStatus === 'ALL' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-400'}`}>Todos</button>
@@ -130,7 +132,6 @@ export default function Proveedores() {
 
       {/* CONTENIDO PRINCIPAL */}
       {viewMode === 'grid' ? (
-        // --- AQUÍ ESTÁ LA MAGIA PARA 4 COLUMNAS ---
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr">
           {filteredProveedores.map((p) => (
             <ProveedorCard key={p.id} proveedor={p} onEdit={openEditModal} onDelete={openDeleteModal} />
@@ -159,7 +160,7 @@ export default function Proveedores() {
                     <td className="p-4 font-bold text-slate-900">{p.razon_social}<br/><span className="text-xs font-mono text-slate-400 font-normal">{p.ruc}</span></td>
                     <td className="p-4 text-slate-600 flex items-center gap-2"><FaUser className="text-slate-400"/> {p.contacto}</td>
                     <td className="p-4 hidden md:table-cell text-slate-500 text-xs space-y-1"><div><FaPhone className="inline mr-1"/>{p.telefono}</div><div><FaEnvelope className="inline mr-1"/>{p.correo}</div></td>
-                    <td className="p-4"><span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${p.estado === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-red-50 text-red-600 border-red-200'}`}>{p.estado}</span></td>
+                    <td className="p-4"><span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${p.estado === 'ACTIVO' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-red-600 border-red-200'}`}>{p.estado}</span></td>
                     <td className="p-4 text-right"><button onClick={()=>openEditModal(p)} className="mx-1 text-slate-400 hover:text-slate-800"><FaEdit/></button><button onClick={()=>openDeleteModal(p)} className="mx-1 text-slate-400 hover:text-red-600"><FaTrash/></button></td>
                   </tr>
                 ))}
@@ -170,7 +171,7 @@ export default function Proveedores() {
       )}
 
       {/* MODALES */}
-      <ProveedorFormModal isOpen={showModal} onClose={() => setShowModal(false)} onSubmit={handleSubmit} initialData={selectedProveedor} isEditing={isEditing} />
+      <ProveedorFormModal isOpen={showModal} onClose={() => setShowModal(false)} onSubmit={handleSubmit} initialData={selectedProveedor} isEditing={isEditing} existingProviders={proveedores} />
       <ProveedorDeleteModal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} onConfirm={handleDeleteConfirm} nombreProveedor={deleteTarget?.razon_social} />
     </div>
   );
