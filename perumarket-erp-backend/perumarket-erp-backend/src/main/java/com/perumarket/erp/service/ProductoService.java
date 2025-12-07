@@ -127,13 +127,13 @@ public Producto crearProductoYStockInicial(ProductoRequest request, MultipartFil
 if (imagen != null && !imagen.isEmpty()) {
     try {
         String nombreArchivo = "producto_" + System.currentTimeMillis() + "_" + imagen.getOriginalFilename();
-        Path carpeta = Paths.get("uploads/productos");
+        Path carpeta = Paths.get("src/main/resources/static/img/products");
         if (!Files.exists(carpeta)) Files.createDirectories(carpeta);
 
         Path rutaFinal = carpeta.resolve(nombreArchivo);
         Files.copy(imagen.getInputStream(), rutaFinal, StandardCopyOption.REPLACE_EXISTING);
 
-        nuevoProducto.setImagen("/uploads/productos/" + nombreArchivo);
+        nuevoProducto.setImagen("/img/products/" + nombreArchivo);
 
     } catch (IOException e) {
         throw new RuntimeException("Error al guardar la imagen: " + e.getMessage(), e);
