@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    FaEdit, FaTrash, FaBuilding, FaPhone, FaEnvelope, FaUser, FaIdCard, FaCircle
+    FaEdit, FaTrash, FaBuilding, FaPhone, FaEnvelope, FaUser, FaIdCard, FaCircle,FaRegEdit
 } from 'react-icons/fa';
 import type { ProveedorData } from '../../../types/proveedor/proveedorType';
 
@@ -69,11 +69,12 @@ export default function ProveedorCard({ proveedor, onEdit, onDelete }: Props) {
             {/* 3. FOOTER */}
             <div className="px-4 py-3 bg-slate-50 border-t border-slate-100 flex gap-2 mt-auto">
                 <button onClick={() => onEdit(proveedor)}
-                    className="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-bold text-xs hover:bg-indigo-700 transition-all shadow-md transform hover:scale-105 flex items-center justify-center gap-2">
-                    EDITAR
+                    className="flex-1 inline-flex items-center justify-center px-4 py-2 text-sm font-semibold text-white bg-slate-900 rounded-lg shadow-sm hover:bg-indigo-600 hover:shadow-indigo-200 hover:shadow-md transition-all duration-300 focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    <FaRegEdit />
+                    <span className="ml-2">Editar</span>
                 </button>
                 <button onClick={() => onDelete(proveedor)}
-                    className="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-all shadow-sm transform hover:scale-110">
+                    className="px-3 py-2 rounded bg-red-600 text-white hover:bg-red-700 transition-all shadow-sm">
                     <FaTrash size={10} />
                 </button>
             </div>
