@@ -995,5 +995,5 @@ const VentasList: React.FC = () => {
     </div>
   );
 };
-
+//actualizado
 export default VentasList;
