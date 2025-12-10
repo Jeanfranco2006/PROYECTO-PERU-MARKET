@@ -1,3 +1,4 @@
+import { Persona } from './../Employee';
 // Persona base
 export interface Persona {
   id?: number;
@@ -25,7 +26,7 @@ export interface Cliente {
 // Filtros
 export interface ClienteFilters {
   texto: string;
-  dni: string;
+  id?: number;
   tipo: string;
 }
 

@@ -58,19 +58,16 @@ const ProductImage = ({ imagen, nombre, className = "" }: { imagen: string, nomb
         );
     }
 
-    const getImageUrl = (imagePath: string) => {
-        // Soporte para Base64 (Vista previa)
-        if (imagePath.startsWith('data:')) {
-            return imagePath;
-        }
-        if (imagePath.startsWith('http')) {
-            return imagePath;
-        }
-        // Si la ruta no incluye /api, construir URL correcta
-        const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
-        return `http://localhost:8080${cleanPath}`;
-    };
+    
 
+    const getImageUrl = (imagePath: string) => {
+        if (imagePath.startsWith('data:')) return imagePath;
+        if (imagePath.startsWith('http')) return imagePath;
+        if (imagePath.startsWith('/api/')) return `http://localhost:8080${imagePath}`;
+        const cleanPath = imagePath.startsWith('/') ? imagePath : `/${imagePath}`;
+        return `http://localhost:8080/api${cleanPath}`;
+    }
+    
     return (
         <img
             src={getImageUrl(imagen)}
@@ -160,7 +157,7 @@ const InventoryEditProduct: React.FC = () => {
                 if (data.imagen) {
                     const imageUrl = data.imagen.startsWith('http')
                         ? data.imagen
-                        : `http://localhost:8080${data.imagen}`;
+                        : `http://localhost:8080/api${data.imagen}`;
                     setImagePreview(imageUrl);
                 } else {
                     setImagePreview(null);
