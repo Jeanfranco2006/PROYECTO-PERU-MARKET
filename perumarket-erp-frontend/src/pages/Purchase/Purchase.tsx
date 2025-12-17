@@ -447,15 +447,7 @@ export default function NewPurchase() {
   };
 
   const cancelarCompra = () => {
-    const confirmacion = window.confirm('¿Está seguro de cancelar la compra? Se perderán todos los datos.');
-    
-    if (confirmacion) {
-      setProductosEnCompra([]);
-      setProveedor('');
-      setAlmacen('');
-      setObservaciones('');
-      setAlertaCapacidad('');
-    }
+    navigate('/compras'); // Redirigimos a la lista de compras
   };
 
   useEffect(() => {
@@ -922,7 +914,10 @@ export default function NewPurchase() {
                   Continuar
                 </button>
                 <button
-                  onClick={cancelarCompra}
+                  onClick={() => {
+                    setShowCancelModal(false); // Cerramos el modal
+                    cancelarCompra(); // Y luego llamamos a la función que redirige
+                  }}
                   className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2 transition-colors"
                 >
                   <IoIosWarning className="w-4 h-4" />

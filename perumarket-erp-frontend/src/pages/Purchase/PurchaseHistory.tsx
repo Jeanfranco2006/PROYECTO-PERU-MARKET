@@ -186,7 +186,7 @@ export default function PurchaseHistory() {
           <h2 className="text-2xl font-bold text-gray-800 mb-2">Error</h2>
           <p className="text-gray-600 mb-4">{error || 'No se pudo cargar la compra'}</p>
           <Link 
-            to="/compras/historial" 
+            to="/compras" 
             className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             Volver al Historial
@@ -204,7 +204,7 @@ export default function PurchaseHistory() {
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center mb-6 border-b pb-4 print:border-b-0">
           <div className="flex items-center mb-4 lg:mb-0">
             <Link 
-              to="/compras/historial" 
+              to="/compras" 
               className="flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors mr-4 print:hidden"
             >
               <IoMdArrowRoundBack className="h-5 w-5 mr-2" />
