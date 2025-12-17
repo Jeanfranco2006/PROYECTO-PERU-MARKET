@@ -215,22 +215,22 @@ function App() {
               }
             />
 
-            <Route 
-              path="/compras/historial" 
+            <Route
+              path="/compras/historial/:id"
               element={
                 <ProtectedRoute requiredModule="Compras">
                   <PurchaseHistory />
                 </ProtectedRoute>
-              } 
+              }
             />
 
-            <Route 
-              path="/compras/nueva" 
+            <Route
+              path="/compras/nueva"
               element={
                 <ProtectedRoute requiredModule="Compras">
                   <NewPurchase />
                 </ProtectedRoute>
-              } 
+              }
             />
 
             {/* Ruta 404 - Redirigir al dashboard */}

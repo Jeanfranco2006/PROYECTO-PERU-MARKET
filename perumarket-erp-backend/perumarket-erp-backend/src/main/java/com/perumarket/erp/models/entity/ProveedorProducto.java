@@ -24,6 +24,17 @@ public class ProveedorProducto {
 
     @Column(name = "precio_compra", precision = 10, scale = 2)
     private BigDecimal precioCompra;
+    
+    // --- NUEVOS CAMPOS ---
+    @Column(name = "peso_kg", precision = 10, scale = 3)
+    private BigDecimal pesoKg;
+
+    @Column(name = "descuento", precision = 5, scale = 2)
+    private BigDecimal descuento;
+
+    @Column(name = "imagen", length = 255)
+    private String imagen;
+    // ---------------------
 
     @Column(name = "tiempo_entrega_dias")
     private Integer tiempoEntregaDias;
@@ -41,6 +52,7 @@ public class ProveedorProducto {
     protected void onCreate() {
         this.fechaCreacion = LocalDateTime.now();
         this.fechaActualizacion = LocalDateTime.now();
+        if (this.descuento == null) this.descuento = BigDecimal.ZERO;
     }
 
     @PreUpdate

@@ -187,7 +187,7 @@ export default function PurchaseList() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
                     <Link 
-                      to={`/compras/detalle/${compra.id}`} 
+                      to={`/compras/historial/${compra.id}`} 
                       className="text-indigo-600 hover:text-indigo-900 p-2 rounded-full hover:bg-indigo-50 transition"
                       title="Ver Detalle"
                     >
