@@ -3,6 +3,7 @@ package com.perumarket.erp.repository;
 import com.perumarket.erp.models.entity.ProveedorProducto;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param; // Importante
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -11,14 +12,18 @@ import java.util.Optional;
 @Repository
 public interface ProveedorProductoRepository extends JpaRepository<ProveedorProducto, Integer> {
     
-    // Busca el proveedor principal de un producto
+    // Busca el proveedor principal de un producto (Lo dejamos igual)
     @Query("SELECT pp FROM ProveedorProducto pp JOIN FETCH pp.proveedor WHERE pp.producto.id = :productoId AND pp.esPrincipal = true")
-    Optional<ProveedorProducto> findByProductoIdAndEsPrincipalTrue(Integer productoId);
+    Optional<ProveedorProducto> findByProductoIdAndEsPrincipalTrue(@Param("productoId") Integer productoId);
     
-    // --- ESTE ES EL MÉTODO QUE FALTABA PARA QUE FUNCIONE EL MODAL ---
-    @Query("SELECT pp FROM ProveedorProducto pp JOIN FETCH pp.producto WHERE pp.proveedor.id = :proveedorId")
-    List<ProveedorProducto> findByProveedorId(Integer proveedorId);
-    // ---------------------------------------------------------------
+    // --- AQUÍ ESTÁ LA CORRECCIÓN CLAVE ---
+    // Filtramos para traer solo productos que estén en estado 'CATALOGO'
+    @Query("SELECT pp FROM ProveedorProducto pp " +
+           "JOIN FETCH pp.producto p " +
+           "WHERE pp.proveedor.id = :proveedorId " +
+           "AND p.estado = 'CATALOGO'") // <--- ESTA LÍNEA HACE LA MAGIA
+    List<ProveedorProducto> findByProveedorId(@Param("proveedorId") Integer proveedorId);
+    // -------------------------------------
 
     List<ProveedorProducto> findByProductoId(Integer productoId);
     
