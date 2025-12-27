@@ -1,6 +1,7 @@
 package com.perumarket.erp.service;
 
 import java.time.LocalDate;
+import java.util.List;
 
 import com.perumarket.erp.models.dto.AsignarEnvioDTO;
 import com.perumarket.erp.models.dto.CrearEnvioDTO;
@@ -17,7 +18,7 @@ import com.perumarket.erp.repository.VehiculoRepository;
 
 import org.springframework.stereotype.Service;
 
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class EnvioService {
@@ -41,6 +42,11 @@ public class EnvioService {
         this.pedidoRepository = pedidoRepository; // ✅ asignar a la variable
     }
 
+
+        @Transactional(readOnly = true)
+    public List<Envio> listarTodos() {
+        return envioRepository.findAll();
+    }
 @Transactional
 public Envio crearEnvio(CrearEnvioDTO dto) {
     // Buscar el pedido asociado a la venta

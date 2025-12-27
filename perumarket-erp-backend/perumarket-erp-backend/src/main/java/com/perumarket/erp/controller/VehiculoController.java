@@ -19,6 +19,10 @@ public class VehiculoController {
         this.vehiculoRepository = vehiculoRepository;
     }
 
+        @GetMapping
+    public List<Vehiculo> listarTodos() {
+        return vehiculoRepository.findAll();
+    }
     @GetMapping("/disponibles")
     public List<Vehiculo> listarDisponibles() {
         return vehiculoRepository.findByEstado(Vehiculo.EstadoVehiculo.DISPONIBLE);

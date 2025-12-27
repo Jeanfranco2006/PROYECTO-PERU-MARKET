@@ -20,6 +20,10 @@ public class ConductorController {
         this.conductorRepository = conductorRepository;
     }
 
+        @GetMapping
+    public List<Conductor> listarTodos() {
+        return conductorRepository.findAll();
+    }
     @GetMapping("/activos")
     public List<Conductor> listarActivos() {
         return conductorRepository.findByEstado(Conductor.EstadoConductor.ACTIVO);

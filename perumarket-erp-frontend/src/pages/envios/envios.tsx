@@ -6,6 +6,7 @@ import type { Envio, CrearEnvioDTO, FormDataEnvio } from "../../types/envios/env
 import { enviosService } from "../../services/envios/envioServices";
 import { api } from "../../services/api";
 
+
 export default function Envios() {
   const [envios, setEnvios] = useState<Envio[]>([]);
   const [envioSeleccionado, setEnvioSeleccionado] = useState<Envio | null>(null);
@@ -27,78 +28,86 @@ export default function Envios() {
 
   // Formulario
   const [formData, setFormData] = useState<FormDataEnvio>({
-  idVenta: 0,       // antes: idPedido
-  idCliente: undefined,
-  productos: [],
-  estado: "PENDIENTE",
-  fechaRegistro: "", // antes: fechaEnvio
-  observaciones: "",
-  idVehiculo: 0,
-  idConductor: 0,
-  idRuta: 0,
-  direccionEnvio: "",
-  fechaEntrega: "",
-  costoTransporte: 0
+    idVenta: 0,       // antes: idPedido
+    idCliente: undefined,
+    productos: [],
+    estado: "PENDIENTE",
+    fechaRegistro: "", // antes: fechaEnvio
+    observaciones: "",
+    idVehiculo: 0,
+    idConductor: 0,
+    idRuta: 0,
+    direccionEnvio: "",
+    fechaEntrega: "",
+    costoTransporte: 0
   });
 
-const handleInputChange = (
-  e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-) => {
-  const { name, value } = e.target;
-  setFormData(prev => ({
-    ...prev,
-    [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
-      ? Number(value)
-      : name === "costoTransporte"
-        ? parseFloat(value)
-        : value
-  }));
-};
+  const handleInputChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
+        ? Number(value)
+        : name === "costoTransporte"
+          ? parseFloat(value)
+          : value
+    }));
+  };
 
   const handleEditar = (envio: Envio) => {
     setEnvioSeleccionado(envio);
     setFormData({
-    idVenta: envio.pedido.id,
-    idCliente: envio.pedido.idCliente,
-    idVehiculo: envio.vehiculo?.id || 0,
-    idConductor: envio.conductor?.id || 0,
-    idRuta: envio.ruta?.id || 0,
-    direccionEnvio: envio.direccionEnvio,
-    fechaRegistro: envio.fechaEnvio || "",
-    fechaEntrega: envio.fechaEntrega || "",
-    costoTransporte: envio.costoTransporte || 0,
-    estado: envio.estado,
-    observaciones: envio.observaciones || "",
-    productos: [] // opcional si quieres mostrar productos
+      idVenta: envio.pedido.id,
+      idCliente: envio.pedido.idCliente,
+      idVehiculo: envio.vehiculo?.id || 0,
+      idConductor: envio.conductor?.id || 0,
+      idRuta: envio.ruta?.id || 0,
+      direccionEnvio: envio.direccionEnvio,
+      fechaRegistro: envio.fechaEnvio || "",
+      fechaEntrega: envio.fechaEntrega || "",
+      costoTransporte: envio.costoTransporte || 0,
+      estado: envio.estado,
+      observaciones: envio.observaciones || "",
+      productos: [] // opcional si quieres mostrar productos
     });
     setShowModal(true);
   };
-
   const cargarEnvios = async () => {
     try {
       const data = await enviosService.listar();
-      setEnvios(data);
+      setEnvios(data); // ahora seguro que es array
     } catch (error) {
       console.error("Error cargando envíos", error);
+      setEnvios([]); // fallback
     }
   };
+
 
   const cargarCombos = async () => {
     try {
       const [pedidosRes, vehiculosRes, conductoresRes, rutasRes] = await Promise.all([
-        api.get("/pedidos"),
+        enviosService.listarPedidosPendientes(), // <-- ahora traes solo pedidos pendientes
         api.get("/vehiculos"),
         api.get("/conductores"),
         api.get("/rutas")
       ]);
-      setPedidos(pedidosRes.data);
-      setVehiculos(vehiculosRes.data);
-      setConductores(conductoresRes.data);
-      setRutas(rutasRes.data);
+
+      setPedidos(pedidosRes || []);
+      setVehiculos(vehiculosRes.data || []);
+      setConductores(conductoresRes.data || []);
+      setRutas(rutasRes.data || []);
     } catch (error) {
       console.error("Error cargando combos", error);
+      setPedidos([]);
+      setVehiculos([]);
+      setConductores([]);
+      setRutas([]);
     }
   };
+
+
 
   useEffect(() => {
     cargarEnvios();
@@ -107,18 +116,18 @@ const handleInputChange = (
 
   const resetForm = () => {
     setFormData({
-        idVenta: 0,
-    idCliente: undefined,
-    productos: [],
-    estado: "PENDIENTE",
-    fechaRegistro: "",
-    observaciones: "",
-    idVehiculo: 0,
-    idConductor: 0,
-    idRuta: 0,
-    direccionEnvio: "",
-    fechaEntrega: "",
-    costoTransporte: 0
+      idVenta: 0,
+      idCliente: undefined,
+      productos: [],
+      estado: "PENDIENTE",
+      fechaRegistro: "",
+      observaciones: "",
+      idVehiculo: 0,
+      idConductor: 0,
+      idRuta: 0,
+      direccionEnvio: "",
+      fechaEntrega: "",
+      costoTransporte: 0
     });
   };
 
@@ -421,11 +430,22 @@ const handleInputChange = (
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Pedido *</label>
-                  <select name="idPedido" value={formData.idVenta} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                  <select
+                    name="idVenta"
+                    value={formData.idVenta}
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
                     <option value="">Seleccionar pedido</option>
-                    {pedidos.map(p => <option key={p.id} value={p.id}>{p.codigo} - {p.cliente} (S/ {p.total})</option>)}
+                    {pedidos.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.codigo} - {p.nombreCliente} (S/ {p.total})
+                      </option>
+                    ))}
                   </select>
                 </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Vehículo *</label>
                   <select name="idVehiculo" value={formData.idVehiculo} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
@@ -437,7 +457,7 @@ const handleInputChange = (
                   <label className="block text-sm font-medium text-gray-700 mb-2">Conductor *</label>
                   <select name="idConductor" value={formData.idConductor} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
                     <option value="">Seleccionar conductor</option>
-                    {conductores.map(c => <option key={c.id} value={c.id}>{c.nombre} - {c.licencia}</option>)}
+                    {conductores.map(c => <option key={c.id} value={c.id}>{c.persona?.nombre} - {c.licencia}</option>)}
                   </select>
                 </div>
                 <div>

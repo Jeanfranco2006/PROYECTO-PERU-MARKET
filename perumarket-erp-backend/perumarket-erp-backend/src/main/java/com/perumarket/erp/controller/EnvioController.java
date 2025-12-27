@@ -1,5 +1,7 @@
 package com.perumarket.erp.controller;
 
+import java.util.List;
+
 import com.perumarket.erp.models.dto.AsignarEnvioDTO;
 import com.perumarket.erp.models.dto.CrearEnvioDTO;
 import com.perumarket.erp.models.entity.Envio;
@@ -7,7 +9,7 @@ import com.perumarket.erp.service.EnvioService;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -44,6 +46,9 @@ public ResponseEntity<?> crearEnvio(@RequestBody CrearEnvioDTO dto) {
             @RequestBody AsignarEnvioDTO dto) {
         return ResponseEntity.ok(envioService.asignarDespacho(id, dto));
     }
-    
+        @GetMapping
+    public List<Envio> listarEnvios() {
+        return envioService.listarTodos(); // retorna todos los envíos
+    }
 }
 

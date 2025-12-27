@@ -1,12 +1,12 @@
 import { api } from "../api";
-import { type ActualizarEnvioDTO, type Envio, type Pedido } from "../../types/envios/envio";
+import { type ActualizarEnvioDTO, type Envio, type PedidoDTO } from "../../types/envios/envio";
 
 
 export const enviosService = {
-  listar: async (): Promise<Envio[]> => {
-    const { data } = await api.get('/envios');
-    return data;
-  },
+listar: async (): Promise<Envio[]> => {
+  const { data } = await api.get('/envios');
+  return Array.isArray(data) ? data : [];
+},
 
   crear: async (payload: any): Promise<Envio> => {
     const { data } = await api.post('/envios', payload);
@@ -23,8 +23,8 @@ export const enviosService = {
 
   
 /*Ojooo acaa */
-listarPedidosPendientes: async (): Promise<Pedido[]> => {
-  const { data } = await api.get('/ventas/pedidos-pendientes');
+listarPedidosPendientes: async (): Promise<PedidoDTO[]> => {
+  const { data } = await api.get('/pedidos/pedidos-pendientes');
   return data;
 }
 

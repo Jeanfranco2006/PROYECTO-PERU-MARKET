@@ -1,6 +1,7 @@
 package com.perumarket.erp.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.perumarket.erp.models.dto.VentaDTO;
 import com.perumarket.erp.models.dto.VentaResponseDTO;
@@ -36,4 +37,5 @@ public class VentaController {
     public VentaResponseDTO obtenerPorId(@PathVariable Integer id) {
         return ventaService.obtenerVentaConDetallesConImagen(id);
     }
+
 }
