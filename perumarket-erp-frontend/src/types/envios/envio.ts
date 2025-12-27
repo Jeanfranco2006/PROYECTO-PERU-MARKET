@@ -50,11 +50,9 @@ export type ActualizarEnvioDTO = Partial<CrearEnvioDTO>;
   costoTransporte?: number;
 }
 
-export interface Pedido {
+export interface PedidoDTO {
   id: number;
-  id_cliente: number;
-  fecha_pedido: string;
-  estado: string;
+  codigo: string;
+  nombreCliente: string;
   total: number;
-  id_venta: number;
 }

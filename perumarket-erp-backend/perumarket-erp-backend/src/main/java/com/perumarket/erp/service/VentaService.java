@@ -1,6 +1,7 @@
 package com.perumarket.erp.service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -11,6 +12,7 @@ import com.perumarket.erp.models.dto.VentaDTO;
 import com.perumarket.erp.models.dto.VentaResponseDTO;
 import com.perumarket.erp.models.entity.Cliente;
 import com.perumarket.erp.models.entity.DetalleVenta;
+import com.perumarket.erp.models.entity.Envio;
 import com.perumarket.erp.models.entity.Inventario;
 import com.perumarket.erp.models.entity.Pedido;
 import com.perumarket.erp.models.entity.Producto;
@@ -33,7 +35,6 @@ public class VentaService {
     private final UsuarioRepository usuarioRepository;
     private final ProductoRepository productoRepository;
     private final ClienteRepository clienteRepository;
-
 
     @Transactional
     public Venta procesarVenta(VentaDTO dto) {
@@ -89,22 +90,26 @@ public class VentaService {
         }
 
         venta.setDetalles(detalles);
-        Venta ventaGuardada= ventaRepository.save(venta);
+        Venta ventaGuardada = ventaRepository.save(venta);
 
-        /*Ultimos cambios venta */
+        /* Ultimos cambios venta */
         // Crear Pedido asociado a la venta
-Pedido pedido = new Pedido();
-pedido.setVenta(ventaGuardada); // usamos la venta ya persistida
+        Pedido pedido = new Pedido();
 
-Cliente cliente = clienteRepository.findById(dto.getIdCliente().longValue())
-        .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
-pedido.setCliente(cliente);
-pedido.setEstado(Pedido.EstadoPedido.PENDIENTE);
-pedido.setTotal(BigDecimal.valueOf(ventaGuardada.getTotal()));
+        Cliente cliente = clienteRepository.findById(dto.getIdCliente().longValue())
+                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+        pedido.setVenta(ventaGuardada);
+        pedido.setCliente(cliente);
+        pedido.setEstado(Pedido.EstadoPedido.PENDIENTE);
+        pedido.setTotal(BigDecimal.valueOf(ventaGuardada.getTotal()));
 
-pedidoRepository.save(pedido);
+        pedidoRepository.save(pedido);
 
-return ventaGuardada;
+        Envio envio = new Envio();
+        envio.setPedido(pedido);
+        envio.setEstado(Envio.EstadoEnvio.PENDIENTE);
+        envio.setFechaEnvio(LocalDate.now()); // fecha de registro
+        return ventaGuardada;
     }
 
     @Transactional(readOnly = true)
