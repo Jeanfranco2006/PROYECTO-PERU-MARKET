@@ -201,4 +201,5 @@ async buscarClientesActivos(texto: string): Promise<Cliente[]> {
 
     return { idUsuario, idAlmacen };
   }
+  
 };

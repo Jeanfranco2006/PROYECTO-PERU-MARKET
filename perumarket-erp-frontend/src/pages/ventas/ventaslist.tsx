@@ -6,6 +6,8 @@ import ModalPago from './ModalPago';
 import type { Cliente } from '../../types/clientes/Client';
 import type { DetallePago, MetodoPago, Producto, ProductoVenta } from '../../types/ventas/ventas';
 import { ventaService } from '../../services/ventas/ventaService';
+import { enviosService } from '../../services/envios/envioServices';
+import type { CrearEnvioDTO } from '../../types/envios/envio';
 
 const ProductImage = ({
   src,
@@ -248,6 +250,47 @@ const VentasList: React.FC = () => {
 
       // 1. Enviar venta al backend (El backend ya descuenta el stock)
       const resultado = await ventaService.procesarVenta(ventaBody);
+
+      /*Para vincular a la venta con envio*/ 
+      // 2. Crear envío automáticamente
+await enviosService.crear({
+   idVenta: resultado.id, // esto debe coincidir
+  idCliente: clienteSeleccionado.id,
+  estado: "PENDIENTE",
+  fechaRegistro: new Date().toISOString(),
+  productos: carrito.map(item => ({
+    idProducto: item.producto.id,
+    cantidad: item.cantidad
+  }))
+});
+
+const procesarVenta = async () => {
+  try {
+    // 1️⃣ Crear la venta
+    const ventaCreada = await ventaService.procesarVenta(ventaBody);
+
+    // 2️⃣ Crear el envío automáticamente
+const envioPayload: CrearEnvioDTO = {
+  idVenta: ventaCreada.id,
+  idCliente: ventaBody.idCliente,
+  estado: "PENDIENTE",
+  fechaRegistro: new Date().toISOString(),
+  productos: ventaBody.detalles.map(item => ({
+    idProducto: item.idProducto,
+    cantidad: item.cantidad
+  }))
+};
+
+    const envioCreado = await enviosService.crear(envioPayload);
+
+    console.log("✅ Venta y pedido creados:", ventaCreada, envioCreado);
+
+  } catch (error) {
+    console.error("Error al procesar venta y crear envío:", error);
+  }
+};
+
+
 
       // SECCIÓN ELIMINADA: Ya no llamamos a actualizarStock manualmente.
       // El backend se encarga de la transacción completa.

@@ -1,5 +1,6 @@
 package com.perumarket.erp.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -8,16 +9,14 @@ import com.perumarket.erp.models.dto.DetalleVentaDTO;
 import com.perumarket.erp.models.dto.DetalleVentaResponseDTO;
 import com.perumarket.erp.models.dto.VentaDTO;
 import com.perumarket.erp.models.dto.VentaResponseDTO;
+import com.perumarket.erp.models.entity.Cliente;
 import com.perumarket.erp.models.entity.DetalleVenta;
 import com.perumarket.erp.models.entity.Inventario;
+import com.perumarket.erp.models.entity.Pedido;
 import com.perumarket.erp.models.entity.Producto;
 import com.perumarket.erp.models.entity.Usuario;
 import com.perumarket.erp.models.entity.Venta;
-import com.perumarket.erp.repository.InventarioRepository;
-import com.perumarket.erp.repository.ProductoRepository;
-import com.perumarket.erp.repository.UsuarioRepository;
-import com.perumarket.erp.repository.VentaRepository;
-
+import com.perumarket.erp.repository.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,10 +26,14 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class VentaService {
 
+    private final PedidoRepository pedidoRepository;
+
     private final VentaRepository ventaRepository;
     private final InventarioRepository inventarioRepository;
     private final UsuarioRepository usuarioRepository;
     private final ProductoRepository productoRepository;
+    private final ClienteRepository clienteRepository;
+
 
     @Transactional
     public Venta procesarVenta(VentaDTO dto) {
@@ -86,7 +89,22 @@ public class VentaService {
         }
 
         venta.setDetalles(detalles);
-        return ventaRepository.save(venta);
+        Venta ventaGuardada= ventaRepository.save(venta);
+
+        /*Ultimos cambios venta */
+        // Crear Pedido asociado a la venta
+Pedido pedido = new Pedido();
+pedido.setVenta(ventaGuardada); // usamos la venta ya persistida
+
+Cliente cliente = clienteRepository.findById(dto.getIdCliente().longValue())
+        .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+pedido.setCliente(cliente);
+pedido.setEstado(Pedido.EstadoPedido.PENDIENTE);
+pedido.setTotal(BigDecimal.valueOf(ventaGuardada.getTotal()));
+
+pedidoRepository.save(pedido);
+
+return ventaGuardada;
     }
 
     @Transactional(readOnly = true)
