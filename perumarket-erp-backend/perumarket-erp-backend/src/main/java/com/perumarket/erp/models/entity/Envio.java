@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -18,9 +20,9 @@ public class Envio {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     @OneToOne
-    @JoinColumn(name = "id_pedido", nullable = false)
+    @JoinColumn(name = "id_pedido")
+    @JsonBackReference
     private Pedido pedido;
 
     @ManyToOne
@@ -40,7 +42,6 @@ public class Envio {
 
     private LocalDate fechaEnvio;
     private LocalDate fechaEntrega;
-
 
     @Column(name = "costo_transporte")
     private BigDecimal costoTransporte;

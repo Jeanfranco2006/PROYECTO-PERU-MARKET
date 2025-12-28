@@ -36,10 +36,11 @@ public class Conductor {
     @UpdateTimestamp
     private LocalDateTime fechaActualizacion;
 
-    public enum EstadoConductor {
-        ACTIVO,
-        INACTIVO
-    }
+public enum EstadoConductor {
+    DISPONIBLE,
+    EN_RUTA,
+    INACTIVO
+}
 
     // getters y setters
 }
