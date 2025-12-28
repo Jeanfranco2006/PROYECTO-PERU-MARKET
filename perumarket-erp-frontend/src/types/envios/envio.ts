@@ -56,3 +56,5 @@ export interface PedidoDTO {
   nombreCliente: string;
   total: number;
 }
+
+

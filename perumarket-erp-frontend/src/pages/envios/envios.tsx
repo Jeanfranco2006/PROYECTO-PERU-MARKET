@@ -5,9 +5,18 @@ import {
 import type { Envio, CrearEnvioDTO, FormDataEnvio } from "../../types/envios/envio";
 import { enviosService } from "../../services/envios/envioServices";
 import { api } from "../../services/api";
+import VehiculoModal from "./RegistarVehiculoModal";
+import ConductorModal from './ConductorModal';
+import RutaModal from "./RutaModal";
+
+  interface ProductoPedido {
+    idProducto: number;
+    cantidad: number;
+  }
 
 
 export default function Envios() {
+  
   const [envios, setEnvios] = useState<Envio[]>([]);
   const [envioSeleccionado, setEnvioSeleccionado] = useState<Envio | null>(null);
 
@@ -42,19 +51,50 @@ export default function Envios() {
     costoTransporte: 0
   });
 
+
+
   const handleInputChange = (
     e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
-        ? Number(value)
-        : name === "costoTransporte"
-          ? parseFloat(value)
-          : value
-    }));
+
+    setFormData(prev => {
+      const updated: FormDataEnvio = {
+        ...prev,
+        [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
+          ? Number(value)
+          : name === "costoTransporte"
+            ? parseFloat(value)
+            : value
+      };
+
+      // --- Si se selecciona un pedido, llenamos idCliente, productos y costoTransporte ---
+      if (name === "idVenta") {
+        const pedidoSeleccionado = pedidos.find(p => p.id === Number(value));
+        if (pedidoSeleccionado) {
+          updated.idCliente = pedidoSeleccionado.id_cliente;
+
+          // Asumiendo que tu pedido trae productos en un array
+          updated.productos = pedidoSeleccionado.productos?.map((prod: ProductoPedido) => ({
+            idProducto: prod.idProducto,
+            cantidad: prod.cantidad,
+          }));
+
+
+          // Puedes usar el total del pedido como costoTransporte inicial o dejar 0
+          updated.costoTransporte = pedidoSeleccionado.total || 0;
+        } else {
+          // Si se deselecciona, limpiamos estos campos
+          updated.idCliente = undefined;
+          updated.productos = [];
+          updated.costoTransporte = undefined;
+        }
+      }
+
+      return updated;
+    });
   };
+
 
   const handleEditar = (envio: Envio) => {
     setEnvioSeleccionado(envio);
@@ -85,34 +125,87 @@ export default function Envios() {
   };
 
 
-  const cargarCombos = async () => {
-    try {
-      const [pedidosRes, vehiculosRes, conductoresRes, rutasRes] = await Promise.all([
-        enviosService.listarPedidosPendientes(), // <-- ahora traes solo pedidos pendientes
-        api.get("/vehiculos"),
-        api.get("/conductores"),
+const cargarCombos = async () => {
+  try {
+    const [pedidosRes, vehiculosRes, conductoresRes, rutasRes] =
+      await Promise.all([
+        enviosService.listarPedidosPendientes(),
+        api.get("/vehiculos/disponibles"),
+        api.get("/conductores/disponibles"),
         api.get("/rutas")
       ]);
 
-      setPedidos(pedidosRes || []);
-      setVehiculos(vehiculosRes.data || []);
-      setConductores(conductoresRes.data || []);
-      setRutas(rutasRes.data || []);
+    setPedidos(pedidosRes || []);
+    setVehiculos(vehiculosRes.data || []);
+    setConductores(conductoresRes.data || []);
+    setRutas(rutasRes.data || []);
+  } catch (error) {
+    console.error("Error cargando combos", error);
+    // ❌ NO hacer setState aquí
+  }
+};
+
+
+useEffect(() => {
+  let isMounted = true; // para evitar actualizar estado después del desmontaje
+
+  const init = async () => {
+    try {
+      // 1️⃣ Cargar envíos primero
+      try {
+        const enviosData = await enviosService.listar();
+        if (isMounted) setEnvios(enviosData || []);
+      } catch (error) {
+        console.error("Error cargando envíos", error);
+        if (isMounted) setEnvios([]); // fallback
+      }
+
+      // 2️⃣ Cargar combos uno por uno, controlando errores
+      try {
+        const pedidosRes = await enviosService.listarPedidosPendientes();
+        if (isMounted) setPedidos(pedidosRes || []);
+      } catch (error) {
+        console.error("Error cargando pedidos pendientes", error);
+        if (isMounted) setPedidos([]);
+      }
+
+      try {
+        const vehiculosRes = await api.get("/vehiculos/disponibles");
+        if (isMounted) setVehiculos(vehiculosRes.data || []);
+      } catch (error) {
+        console.error("Error cargando vehículos", error);
+        if (isMounted) setVehiculos([]);
+      }
+
+      try {
+        const conductoresRes = await api.get("/conductores/disponibles");
+        if (isMounted) setConductores(conductoresRes.data || []);
+      } catch (error) {
+        console.error("Error cargando conductores", error);
+        if (isMounted) setConductores([]);
+      }
+
+      try {
+        const rutasRes = await api.get("/rutas");
+        if (isMounted) setRutas(rutasRes.data || []);
+      } catch (error) {
+        console.error("Error cargando rutas", error);
+        if (isMounted) setRutas([]);
+      }
+
     } catch (error) {
-      console.error("Error cargando combos", error);
-      setPedidos([]);
-      setVehiculos([]);
-      setConductores([]);
-      setRutas([]);
+      console.error("Error general inicializando envíos y combos", error);
     }
   };
 
+  init();
+
+  return () => {
+    isMounted = false; // cleanup al desmontar
+  };
+}, []);
 
 
-  useEffect(() => {
-    cargarEnvios();
-    cargarCombos();
-  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -185,15 +278,27 @@ export default function Envios() {
     }
   };
 
-  const enviosFiltrados = envios.filter((envio) => {
-    const search = searchTerm.toLowerCase();
-    const matchSearch =
-      envio.pedido.id.toString().includes(search) ||
-      envio.direccionEnvio.toLowerCase().includes(search) ||
-      envio.ruta?.nombre?.toLowerCase().includes(search);
-    const matchEstado = !filterEstado || envio.estado === filterEstado;
-    return matchSearch && matchEstado;
-  });
+const enviosFiltrados = envios.filter((envio) => {
+  const search = searchTerm.toLowerCase();
+
+  const pedidoId = envio.pedido?.id?.toString() ?? ""; // <-- seguro
+  const direccion = envio.direccionEnvio?.toLowerCase() ?? "";
+  const nombreRuta = envio.ruta?.nombre?.toLowerCase() ?? "";
+
+  const matchSearch =
+    pedidoId.includes(search) ||
+    direccion.includes(search) ||
+    nombreRuta.includes(search);
+
+  const matchEstado = !filterEstado || envio.estado === filterEstado;
+
+  return matchSearch && matchEstado;
+});
+
+console.log("Envios sin pedido:", enviosFiltrados.filter(e => !e?.pedido));
+
+
+const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
 
   return (
     <div className="w-full p-4 sm:p-6 bg-gray-100 min-h-screen">
@@ -247,39 +352,54 @@ export default function Envios() {
         </div>
       </div>
 
-      {/* Barra de acciones */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <button
-          onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-black text-white px-4 sm:px-6 py-3 rounded-xl hover:bg-gray-800 w-full sm:w-auto justify-center"
-        >
-          <FiPlus />
-          CREAR ENVÍO
-        </button>
-        <div className="flex-1 flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Buscar por pedido, cliente o dirección..."
-              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <select
-            className="w-full sm:w-48 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            value={filterEstado}
-            onChange={(e) => setFilterEstado(e.target.value)}
-          >
-            <option value="">Todos los estados</option>
-            <option value="PENDIENTE">Pendiente</option>
-            <option value="EN_RUTA">En Ruta</option>
-            <option value="ENTREGADO">Entregado</option>
-            <option value="CANCELADO">Cancelado</option>
-          </select>
-        </div>
-      </div>
+{/* Barra de acciones */}
+<div className="flex flex-col sm:flex-row gap-4 mb-6">
+  {/* Botón Crear Envío */}
+  <button
+    onClick={() => setShowModal(true)}
+    className="flex items-center gap-2 bg-black text-white px-4 sm:px-6 py-3 rounded-xl hover:bg-gray-800 w-full sm:w-auto justify-center"
+  >
+    <FiPlus />
+    CREAR ENVÍO
+  </button>
+
+  {/* Botones de acción adicionales */}
+  <div className="flex flex-wrap gap-2 sm:ml-4">
+     <VehiculoModal onSaved={cargarCombos} />
+
+
+    <ConductorModal onSaved={cargarCombos}></ConductorModal>
+
+    <RutaModal onSaved={cargarCombos}></RutaModal>
+  </div>
+
+  {/* Barra de búsqueda y filtro */}
+  <div className="flex-1 flex flex-col sm:flex-row gap-4 mt-2 sm:mt-0">
+    <div className="relative flex-1">
+      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+      <input
+        type="text"
+        placeholder="Buscar por pedido, cliente o dirección..."
+        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+      />
+    </div>
+
+    <select
+      className="w-full sm:w-48 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      value={filterEstado}
+      onChange={(e) => setFilterEstado(e.target.value)}
+    >
+      <option value="">Todos los estados</option>
+      <option value="PENDIENTE">Pendiente</option>
+      <option value="EN_RUTA">En Ruta</option>
+      <option value="ENTREGADO">Entregado</option>
+      <option value="CANCELADO">Cancelado</option>
+    </select>
+  </div>
+</div>
+
 
       {/* Tabla desktop y móvil + modales */}
       {/* Esta parte sigue igual que tu versión, ya lista para usar */}
@@ -303,115 +423,120 @@ export default function Envios() {
               </tr>
             </thead>
             <tbody>
-              {enviosFiltrados.map((envio) => (
-                <tr key={envio.id} className="border-b hover:bg-gray-50">
-                  <td className="p-3 font-medium">{envio.pedido.id}</td>
-                  <td className="p-3">{envio.pedido.idCliente}</td>
-                  <td className="p-3">{envio.vehiculo?.marca} {envio.vehiculo?.modelo}</td>
-                  <td className="p-3">{envio.conductor?.nombre}</td>
-                  <td className="p-3">{envio.ruta?.nombre}</td>
-                  <td className="p-3 max-w-xs truncate">{envio.direccionEnvio}</td>
-                  <td className="p-3">
-                    <div className="text-xs">
-                      <div>Envío: {envio.fechaEnvio}</div>
-                      {envio.fechaEntrega && <div>Entrega: {envio.fechaEntrega}</div>}
-                    </div>
-                  </td>
-                  <td className="p-3">S/ {envio.costoTransporte}</td>
-                  <td className="p-3">
-                    <select
-                      value={envio.estado}
-                      onChange={(e) => cambiarEstado(envio.id, e.target.value as Envio["estado"])}
-                      className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado)}`}
-                    >
-                      <option value="PENDIENTE">PENDIENTE</option>
-                      <option value="EN_RUTA">EN RUTA</option>
-                      <option value="ENTREGADO">ENTREGADO</option>
-                      <option value="CANCELADO">CANCELADO</option>
-                    </select>
-                  </td>
-                  <td className="p-3">
-                    <div className="flex gap-2 justify-center">
-                      <button onClick={() => handleVerDetalles(envio)} className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                        <FiEye size={16} />
-                      </button>
-                      <button onClick={() => handleEditar(envio)} className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
-                        <FiEdit size={16} />
-                      </button>
-                      <button onClick={() => handleEliminar(envio)} className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
-                        <FiTrash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+ {enviosConPedido.map((envio, index) => (
+            <tr key={envio.id ?? index} className="border-b hover:bg-gray-50">
+              <td className="p-3 font-medium">{envio.pedido.id}</td>
+              <td className="p-3">{envio.pedido.idCliente}</td>
+              <td className="p-3">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</td>
+              <td className="p-3">{envio.conductor?.nombre ?? "-"}</td>
+              <td className="p-3">{envio.ruta?.nombre ?? "-"}</td>
+              <td className="p-3 max-w-xs truncate">{envio.direccionEnvio ?? "-"}</td>
+              <td className="p-3">
+                <div className="text-xs">
+                  <div>Envío: {envio.fechaEnvio ?? "-"}</div>
+                  <div>Entrega: {envio.fechaEntrega ?? "Pendiente"}</div>
+                </div>
+              </td>
+              <td className="p-3">S/ {envio.costoTransporte ?? 0}</td>
+              <td className="p-3">
+                <select
+                  value={envio.estado ?? "PENDIENTE"}
+                  onChange={(e) => envio.id && cambiarEstado(envio.id, e.target.value as Envio["estado"])}
+                  className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado ?? "PENDIENTE")}`}
+                >
+                  <option value="PENDIENTE">PENDIENTE</option>
+                  <option value="EN_RUTA">EN RUTA</option>
+                  <option value="ENTREGADO">ENTREGADO</option>
+                  <option value="CANCELADO">CANCELADO</option>
+                </select>
+              </td>
+              <td className="p-3">
+                <div className="flex gap-2 justify-center">
+                  <button onClick={() => handleVerDetalles(envio)} className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                    <FiEye size={16} />
+                  </button>
+                  <button onClick={() => handleEditar(envio)} className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                    <FiEdit size={16} />
+                  </button>
+                  <button onClick={() => handleEliminar(envio)} className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                    <FiTrash2 size={16} />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+
+
+
             </tbody>
           </table>
         </div>
 
         {/* Vista móvil */}
         <div className="lg:hidden p-4 space-y-4">
-          {enviosFiltrados.map((envio) => (
-            <div key={envio.id} className="border rounded-lg p-4 bg-white shadow-sm">
-              <div className="space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-semibold text-lg">Pedido: {envio.pedido.id}</p>
-                    <p className="text-gray-600">Cliente: {envio.pedido.idCliente}</p>
-                  </div>
-                  <select
-                    value={envio.estado}
-                    onChange={(e) => cambiarEstado(envio.id, e.target.value as Envio["estado"])}
-                    className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado)}`}
-                  >
-                    <option value="PENDIENTE">PENDIENTE</option>
-                    <option value="EN_RUTA">EN RUTA</option>
-                    <option value="ENTREGADO">ENTREGADO</option>
-                    <option value="CANCELADO">CANCELADO</option>
-                  </select>
-                </div>
+      {enviosConPedido.map((envio) => (
+        <div key={envio.id} className="border rounded-lg p-4 bg-white shadow-sm">
+          <div className="space-y-3">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-semibold text-lg">Pedido: {envio.pedido.id}</p>
+                <p className="text-gray-600">Cliente: {envio.pedido.idCliente}</p>
+              </div>
+              <select
+                value={envio.estado ?? "PENDIENTE"}
+                onChange={(e) => cambiarEstado(envio.id, e.target.value as Envio["estado"])}
+                className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado ?? "PENDIENTE")}`}
+              >
+                <option value="PENDIENTE">PENDIENTE</option>
+                <option value="EN_RUTA">EN RUTA</option>
+                <option value="ENTREGADO">ENTREGADO</option>
+                <option value="CANCELADO">CANCELADO</option>
+              </select>
+            </div>
 
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Vehículo</p>
-                    <p className="font-medium">{envio.vehiculo?.marca} {envio.vehiculo?.modelo}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Conductor</p>
-                    <p className="font-medium">{envio.conductor?.nombre}</p>
-                  </div>
-                </div>
-
-                <div>
-                  <p className="text-gray-500">Dirección</p>
-                  <p className="font-medium text-sm">{envio.direccionEnvio}</p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-gray-500">Fecha Envío</p>
-                    <p className="font-medium">{envio.fechaEnvio}</p>
-                  </div>
-                  <div>
-                    <p className="text-gray-500">Costo</p>
-                    <p className="font-medium">S/ {envio.costoTransporte}</p>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 pt-2">
-                  <button onClick={() => handleVerDetalles(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-colors">
-                    <FiEye size={14} /> Ver
-                  </button>
-                  <button onClick={() => handleEditar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm transition-colors">
-                    <FiEdit size={14} /> Editar
-                  </button>
-                  <button onClick={() => handleEliminar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm transition-colors">
-                    <FiTrash2 size={14} /> Eliminar
-                  </button>
-                </div>
+            {/* Info Vehículo y Conductor */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Vehículo</p>
+                <p className="font-medium">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Conductor</p>
+                <p className="font-medium">{envio.conductor?.nombre ?? "-"}</p>
               </div>
             </div>
-          ))}
+
+            <div>
+              <p className="text-gray-500">Dirección</p>
+              <p className="font-medium text-sm">{envio.direccionEnvio ?? "-"}</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div>
+                <p className="text-gray-500">Fecha Envío</p>
+                <p className="font-medium">{envio.fechaEnvio ?? "-"}</p>
+              </div>
+              <div>
+                <p className="text-gray-500">Costo</p>
+                <p className="font-medium">S/ {envio.costoTransporte ?? 0}</p>
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => handleVerDetalles(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-colors">
+                <FiEye size={14} /> Ver
+              </button>
+              <button onClick={() => handleEditar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm transition-colors">
+                <FiEdit size={14} /> Editar
+              </button>
+              <button onClick={() => handleEliminar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm transition-colors">
+                <FiTrash2 size={14} /> Eliminar
+              </button>
+            </div>
+          </div>
+        </div>
+      ))}
+
         </div>
       </div>
 

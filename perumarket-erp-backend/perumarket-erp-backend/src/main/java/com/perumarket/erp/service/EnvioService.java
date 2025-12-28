@@ -5,6 +5,7 @@ import java.util.List;
 
 import com.perumarket.erp.models.dto.AsignarEnvioDTO;
 import com.perumarket.erp.models.dto.CrearEnvioDTO;
+import com.perumarket.erp.models.dto.EnvioDTO;
 import com.perumarket.erp.models.entity.Conductor;
 import com.perumarket.erp.models.entity.Envio;
 import com.perumarket.erp.models.entity.Pedido;
@@ -41,6 +42,7 @@ public class EnvioService {
         this.rutaRepository = rutaRepository;
         this.pedidoRepository = pedidoRepository; // ✅ asignar a la variable
     }
+
 
 
         @Transactional(readOnly = true)
@@ -85,7 +87,7 @@ public Envio crearEnvio(CrearEnvioDTO dto) {
         Conductor conductor = conductorRepository.findById(dto.getIdConductor())
                 .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
 
-        if (conductor.getEstado() != Conductor.EstadoConductor.ACTIVO) {
+        if (conductor.getEstado() != Conductor.EstadoConductor.DISPONIBLE) {
             throw new RuntimeException("El conductor no está activo");
         }
 

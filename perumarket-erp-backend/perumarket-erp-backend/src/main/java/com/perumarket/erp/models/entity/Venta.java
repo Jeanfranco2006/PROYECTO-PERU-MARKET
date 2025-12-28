@@ -1,5 +1,7 @@
 package com.perumarket.erp.models.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -15,16 +17,16 @@ public class Venta {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @OneToMany(cascade = CascadeType.ALL)
-    @JoinColumn(name = "id_venta", referencedColumnName = "id")
+    @OneToMany(cascade = CascadeType.ALL, mappedBy = "venta", fetch = FetchType.LAZY)
+    @JsonManagedReference // rompe el ciclo con DetalleVenta
     private List<DetalleVenta> detalles;
-
 
     @Column(name = "id_cliente")
     private Integer idCliente;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_usuario", nullable = false)
+    @JsonIgnore
     private Usuario usuario;
 
     @Column(name = "id_almacen")
@@ -70,5 +72,4 @@ public class Venta {
     protected void onUpdate() {
         fechaActualizacion = LocalDateTime.now();
     }
-
 }

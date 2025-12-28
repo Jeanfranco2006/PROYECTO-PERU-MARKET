@@ -1,4 +1,4 @@
-import { Persona } from './../Employee';
+//import { Persona } from './../Employee';
 // Persona base
 export interface Persona {
   id?: number;

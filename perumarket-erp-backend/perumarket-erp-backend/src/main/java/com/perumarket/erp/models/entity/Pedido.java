@@ -3,6 +3,8 @@ package com.perumarket.erp.models.entity;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
+
 import jakarta.persistence.*;
 import lombok.Data;
 
@@ -37,7 +39,8 @@ public class Pedido {
     @UpdateTimestamp
     private LocalDateTime fechaActualizacion;
 
-    @OneToOne(mappedBy = "pedido", cascade = CascadeType.ALL)
+   @OneToOne(mappedBy = "pedido")
+@JsonManagedReference
     private Envio envio;
 
     public enum EstadoPedido {

@@ -1,5 +1,7 @@
 package com.perumarket.erp.models.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.ToString;
@@ -18,15 +20,16 @@ public class DetalleVenta {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_venta", nullable = false)
     @ToString.Exclude
+    @JsonBackReference // rompe el ciclo con Venta
     private Venta venta;
 
     // RELACIÓN SOLO LECTURA AL PRODUCTO
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_producto", insertable = false, updatable = false)
     @ToString.Exclude
+    @JsonIgnore // evita serializar el proxy de Hibernate
     private Producto producto;
 
-    // ID REAL QUE SE GUARDA EN LA TABLA
     @Column(name = "id_producto")
     private Integer idProducto;
 

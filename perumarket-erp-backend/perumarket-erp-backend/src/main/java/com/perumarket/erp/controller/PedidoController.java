@@ -3,7 +3,7 @@ package com.perumarket.erp.controller;
 import java.util.List;
 
 import com.perumarket.erp.models.dto.PedidoDTO;
-import com.perumarket.erp.models.dto.VentaResponseDTO;
+
 import com.perumarket.erp.models.entity.Pedido;
 import com.perumarket.erp.service.PedidoService;
 

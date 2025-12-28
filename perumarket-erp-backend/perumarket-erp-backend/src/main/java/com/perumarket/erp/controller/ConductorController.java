@@ -24,8 +24,8 @@ public class ConductorController {
     public List<Conductor> listarTodos() {
         return conductorRepository.findAll();
     }
-    @GetMapping("/activos")
-    public List<Conductor> listarActivos() {
-        return conductorRepository.findByEstado(Conductor.EstadoConductor.ACTIVO);
+    @GetMapping("/disponibles")
+    public List<Conductor> listarDisponibles() {
+        return conductorRepository.findByEstado(Conductor.EstadoConductor.DISPONIBLE);
     }
 }
