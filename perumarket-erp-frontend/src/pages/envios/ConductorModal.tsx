@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { api } from "../../services/api";
-
-import { FaIdCard, FaPowerOff } from "react-icons/fa";
+import { FaIdBadge, FaIdCard, FaPowerOff } from "react-icons/fa";
 import PersonaForm from "../../components/modals/PersonaForm";
 import InputField from "../Clients/InputField";
 import SelectField from "../Clients/SelectField";
+import { ConductorService } from "../../services/envios/conductorService";
+import type { Conductor } from "../../types/Conductor/conductor";
+
 
 interface Props {
   onSaved?: () => void;
@@ -13,7 +14,7 @@ interface Props {
 export default function ConductorModal({ onSaved }: Props) {
   const [show, setShow] = useState(false);
 
-  const [state, setState] = useState({
+  const [state, setState] = useState<Conductor>({
     persona: {
       tipoDocumento: "DNI",
       numeroDocumento: "",
@@ -26,8 +27,10 @@ export default function ConductorModal({ onSaved }: Props) {
       fechaNacimiento: ""
     },
     licencia: "",
+    categoriaLicencia: "", // ✅ agregada
     estado: "DISPONIBLE"
   });
+
 
   const setField = (path: string, value: any) => {
     setState(prev => {
@@ -47,14 +50,24 @@ export default function ConductorModal({ onSaved }: Props) {
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
-    await api.post("/conductores", state);
-    setShow(false);
-    onSaved?.();
+    try {
+      await ConductorService.crearConductor({
+        persona: { ...state.persona },
+        licencia: state.licencia,
+        categoriaLicencia: state.categoriaLicencia,
+        estado: state.estado
+      });
+      setShow(false);
+      onSaved?.();
+    } catch (err) {
+      console.error("Error creando conductor:", err);
+      alert("No se pudo crear el conductor. Revisa la consola para más detalles.");
+    }
   };
 
   return (
     <>
-      <button 
+      <button
         onClick={() => setShow(true)}
         className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700"
       >
@@ -64,13 +77,11 @@ export default function ConductorModal({ onSaved }: Props) {
       {show && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
           <div className="bg-white rounded-xl w-full max-w-5xl p-6">
-
             <h2 className="text-lg font-bold mb-6">
               Registrar Conductor
             </h2>
 
             <form onSubmit={submit} className="space-y-6">
-
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
                 {/* PERSONA */}
@@ -93,6 +104,15 @@ export default function ConductorModal({ onSaved }: Props) {
                     required
                   />
 
+                  <InputField
+                    label="Categoría de Licencia"
+                    icon={<FaIdBadge />} // 👈 agregamos el icono
+                    value={state.categoriaLicencia}
+                    onChange={(v) => setField("categoriaLicencia", v)}
+                    required
+                  />
+
+
                   <SelectField
                     label="Estado"
                     icon={<FaPowerOff />}
@@ -102,7 +122,6 @@ export default function ConductorModal({ onSaved }: Props) {
                     required
                   />
                 </div>
-
               </div>
 
               <div className="flex justify-end gap-3 pt-6 border-t">
@@ -113,7 +132,6 @@ export default function ConductorModal({ onSaved }: Props) {
                   Guardar
                 </button>
               </div>
-
             </form>
           </div>
         </div>

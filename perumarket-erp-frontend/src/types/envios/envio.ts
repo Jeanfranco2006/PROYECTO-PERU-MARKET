@@ -14,7 +14,7 @@ export interface Envio {
   conductor?: {
     id: number;
     licencia: string;
-     nombre: string; // <- agregar
+    nombre: string; // <- agregar
   };
   ruta?: {
     id: number;
@@ -28,26 +28,28 @@ export interface Envio {
   observaciones?: string;
 }
 
-export interface CrearEnvioDTO {
-  idVenta: number; // <- igual que el backend
+interface CrearEnvioDTO {
+  idVenta?: number;
   idCliente?: number;
-  productos?: { idProducto: number; cantidad: number }[];
-  estado?: 'PENDIENTE' | 'EN_RUTA' | 'ENTREGADO' | 'CANCELADO';
-  fechaRegistro?: string;
-  observaciones?: string;
+  estado: string;
+  fechaRegistro: string;
+  productos: { idProducto: number; cantidad: number }[];
 }
 
 export type ActualizarEnvioDTO = Partial<CrearEnvioDTO>;
 
 
 
- export interface FormDataEnvio extends CrearEnvioDTO {
+export interface FormDataEnvio extends CrearEnvioDTO {
+
   idVehiculo?: number;
   idConductor?: number;
   idRuta?: number;
   direccionEnvio?: string;
+    fechaEnvio?: string;  
   fechaEntrega?: string;
   costoTransporte?: number;
+  observaciones?: string; // <-- agregado
 }
 
 export interface PedidoDTO {

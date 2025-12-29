@@ -1,305 +1,209 @@
-import React, { useState, useEffect, type ChangeEvent, type FormEvent } from "react";
+import React, { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
 import {
   FiPlus, FiEdit, FiTrash2, FiEye, FiTruck, FiMap, FiUser, FiPackage, FiSearch, FiX
 } from "react-icons/fi";
-import type { Envio, CrearEnvioDTO, FormDataEnvio } from "../../types/envios/envio";
 import { enviosService } from "../../services/envios/envioServices";
 import { api } from "../../services/api";
 import VehiculoModal from "./RegistarVehiculoModal";
-import ConductorModal from './ConductorModal';
+import ConductorModal from "./ConductorModal";
 import RutaModal from "./RutaModal";
+import type { Envio, FormDataEnvio } from "../../types/envios/envio";
 
-  interface ProductoPedido {
-    idProducto: number;
-    cantidad: number;
-  }
-
+type EstadoEnvio = "PENDIENTE" | "EN_RUTA" | "ENTREGADO" | "CANCELADO";
 
 export default function Envios() {
-  
+
   const [envios, setEnvios] = useState<Envio[]>([]);
   const [envioSeleccionado, setEnvioSeleccionado] = useState<Envio | null>(null);
 
-  // Modales
   const [showModal, setShowModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
-  // Filtros
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterEstado, setFilterEstado] = useState("");
+  const [filterEstado, setFilterEstado] = useState<EstadoEnvio | "">("");
 
-  // Combos
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [vehiculos, setVehiculos] = useState<any[]>([]);
   const [conductores, setConductores] = useState<any[]>([]);
   const [rutas, setRutas] = useState<any[]>([]);
 
-  // Formulario
+  // Estado del formulario
   const [formData, setFormData] = useState<FormDataEnvio>({
-    idVenta: 0,       // antes: idPedido
+    idVenta: undefined,
     idCliente: undefined,
-    productos: [],
-    estado: "PENDIENTE",
-    fechaRegistro: "", // antes: fechaEnvio
-    observaciones: "",
-    idVehiculo: 0,
-    idConductor: 0,
-    idRuta: 0,
+    idVehiculo: undefined,
+    idConductor: undefined,
+    idRuta: undefined,
     direccionEnvio: "",
+    fechaRegistro: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
     fechaEntrega: "",
-    costoTransporte: 0
+    costoTransporte: 0,
+    estado: "PENDIENTE",
+    observaciones: "",
+    productos: [], // obligatorio
   });
 
-
-
-  const handleInputChange = (
-    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-
-    setFormData(prev => {
-      const updated: FormDataEnvio = {
-        ...prev,
-        [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
-          ? Number(value)
-          : name === "costoTransporte"
-            ? parseFloat(value)
-            : value
-      };
-
-      // --- Si se selecciona un pedido, llenamos idCliente, productos y costoTransporte ---
-      if (name === "idVenta") {
-        const pedidoSeleccionado = pedidos.find(p => p.id === Number(value));
-        if (pedidoSeleccionado) {
-          updated.idCliente = pedidoSeleccionado.id_cliente;
-
-          // Asumiendo que tu pedido trae productos en un array
-          updated.productos = pedidoSeleccionado.productos?.map((prod: ProductoPedido) => ({
-            idProducto: prod.idProducto,
-            cantidad: prod.cantidad,
-          }));
-
-
-          // Puedes usar el total del pedido como costoTransporte inicial o dejar 0
-          updated.costoTransporte = pedidoSeleccionado.total || 0;
-        } else {
-          // Si se deselecciona, limpiamos estos campos
-          updated.idCliente = undefined;
-          updated.productos = [];
-          updated.costoTransporte = undefined;
-        }
-      }
-
-      return updated;
-    });
-  };
-
-
-  const handleEditar = (envio: Envio) => {
-    setEnvioSeleccionado(envio);
-    setFormData({
-      idVenta: envio.pedido.id,
-      idCliente: envio.pedido.idCliente,
-      idVehiculo: envio.vehiculo?.id || 0,
-      idConductor: envio.conductor?.id || 0,
-      idRuta: envio.ruta?.id || 0,
-      direccionEnvio: envio.direccionEnvio,
-      fechaRegistro: envio.fechaEnvio || "",
-      fechaEntrega: envio.fechaEntrega || "",
-      costoTransporte: envio.costoTransporte || 0,
-      estado: envio.estado,
-      observaciones: envio.observaciones || "",
-      productos: [] // opcional si quieres mostrar productos
-    });
-    setShowModal(true);
-  };
-  const cargarEnvios = async () => {
-    try {
-      const data = await enviosService.listar();
-      setEnvios(data); // ahora seguro que es array
-    } catch (error) {
-      console.error("Error cargando envíos", error);
-      setEnvios([]); // fallback
-    }
-  };
-
-
-const cargarCombos = async () => {
-  try {
-    const [pedidosRes, vehiculosRes, conductoresRes, rutasRes] =
-      await Promise.all([
-        enviosService.listarPedidosPendientes(),
-        api.get("/vehiculos/disponibles"),
-        api.get("/conductores/disponibles"),
-        api.get("/rutas")
-      ]);
-
-    setPedidos(pedidosRes || []);
-    setVehiculos(vehiculosRes.data || []);
-    setConductores(conductoresRes.data || []);
-    setRutas(rutasRes.data || []);
-  } catch (error) {
-    console.error("Error cargando combos", error);
-    // ❌ NO hacer setState aquí
-  }
-};
-
-
-useEffect(() => {
-  let isMounted = true; // para evitar actualizar estado después del desmontaje
-
-  const init = async () => {
-    try {
-      // 1️⃣ Cargar envíos primero
-      try {
-        const enviosData = await enviosService.listar();
-        if (isMounted) setEnvios(enviosData || []);
-      } catch (error) {
-        console.error("Error cargando envíos", error);
-        if (isMounted) setEnvios([]); // fallback
-      }
-
-      // 2️⃣ Cargar combos uno por uno, controlando errores
-      try {
-        const pedidosRes = await enviosService.listarPedidosPendientes();
-        if (isMounted) setPedidos(pedidosRes || []);
-      } catch (error) {
-        console.error("Error cargando pedidos pendientes", error);
-        if (isMounted) setPedidos([]);
-      }
-
-      try {
-        const vehiculosRes = await api.get("/vehiculos/disponibles");
-        if (isMounted) setVehiculos(vehiculosRes.data || []);
-      } catch (error) {
-        console.error("Error cargando vehículos", error);
-        if (isMounted) setVehiculos([]);
-      }
-
-      try {
-        const conductoresRes = await api.get("/conductores/disponibles");
-        if (isMounted) setConductores(conductoresRes.data || []);
-      } catch (error) {
-        console.error("Error cargando conductores", error);
-        if (isMounted) setConductores([]);
-      }
-
-      try {
-        const rutasRes = await api.get("/rutas");
-        if (isMounted) setRutas(rutasRes.data || []);
-      } catch (error) {
-        console.error("Error cargando rutas", error);
-        if (isMounted) setRutas([]);
-      }
-
-    } catch (error) {
-      console.error("Error general inicializando envíos y combos", error);
-    }
-  };
-
-  init();
-
-  return () => {
-    isMounted = false; // cleanup al desmontar
-  };
-}, []);
-
-
-
+  // Función para reiniciar el formulario
   const resetForm = () => {
     setFormData({
-      idVenta: 0,
+      idVenta: undefined,
       idCliente: undefined,
-      productos: [],
-      estado: "PENDIENTE",
-      fechaRegistro: "",
-      observaciones: "",
-      idVehiculo: 0,
-      idConductor: 0,
-      idRuta: 0,
+      idVehiculo: undefined,
+      idConductor: undefined,
+      idRuta: undefined,
       direccionEnvio: "",
+      fechaRegistro: new Date().toISOString().slice(0, 10),
       fechaEntrega: "",
-      costoTransporte: 0
+      costoTransporte: 0,
+      estado: "PENDIENTE",
+      observaciones: "",
+      productos: [], // obligatorio
     });
   };
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    try {
-      if (envioSeleccionado) {
-        await enviosService.actualizar(envioSeleccionado.id, formData);
-      } else {
-        await enviosService.crear(formData);
-      }
-      cargarEnvios();
-      resetForm();
-      setShowModal(false);
-      setEnvioSeleccionado(null);
-    } catch (error) {
-      console.error("Error guardando envío", error);
-    }
-  };
 
+
+  // Función para ver detalles
   const handleVerDetalles = (envio: Envio) => {
     setEnvioSeleccionado(envio);
     setShowDetailModal(true);
   };
 
+  // Función para editar
+  const handleEditar = (envio: Envio) => {
+    setEnvioSeleccionado(envio);
+    setShowModal(true); // asumiendo que showModal abre el modal de creación/edición
+  };
+
+  // Función para eliminar
   const handleEliminar = (envio: Envio) => {
     setEnvioSeleccionado(envio);
     setShowDeleteModal(true);
   };
 
-  const confirmarEliminar = async () => {
+  // Función para confirmar eliminación
+  const confirmarEliminar = () => {
     if (!envioSeleccionado) return;
-    await enviosService.eliminar(envioSeleccionado.id);
-    cargarEnvios();
+    // Aquí va tu lógica para eliminar, por ejemplo:
+    setEnvios((prev) => prev.filter(e => e.id !== envioSeleccionado.id));
     setShowDeleteModal(false);
     setEnvioSeleccionado(null);
   };
 
-  const estadoColor = (estado: Envio["estado"]) => {
+
+const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const { name, value } = e.target;
+
+  setFormData(prev => ({
+    ...prev,
+    [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
+      ? value === "" ? undefined : Number(value)
+      : value
+  }));
+};
+
+  const cargarEnvios = async () => {
+    const data = await enviosService.listar();
+    setEnvios(Array.isArray(data) ? data : []);
+  };
+
+  const cargarCombos = async () => {
+    try {
+      const pedidosRes = await enviosService.listarPedidosPendientes();
+      console.log("Pedidos disponibles:", pedidosRes);
+      console.log("formData.idVenta", formData.idVenta);
+
+      setPedidos(pedidosRes || []);
+
+      const vehiculosRes = await api.get("/vehiculos/disponibles");
+      setVehiculos(vehiculosRes.data || []);
+
+      const conductoresRes = await api.get("/conductores/disponibles");
+      setConductores(conductoresRes.data || []);
+
+      const rutasRes = await api.get("/rutas");
+      setRutas(rutasRes.data || []);
+    } catch (error) {
+      console.error("Error cargando combos:", error);
+    }
+  };
+
+
+
+  useEffect(() => {
+    cargarEnvios();
+    cargarCombos();
+  }, []);
+
+  const enviosFiltrados = useMemo(() => {
+    return envios.filter(e => {
+      const search = searchTerm.toLowerCase();
+      const pedidoId = e.pedido?.id?.toString() ?? "";
+      const direccion = e.direccionEnvio?.toLowerCase() ?? "";
+      const ruta = e.ruta?.nombre?.toLowerCase() ?? "";
+
+      return (
+        (pedidoId.includes(search) || direccion.includes(search) || ruta.includes(search)) &&
+        (!filterEstado || e.estado === filterEstado)
+      );
+    });
+  }, [envios, searchTerm, filterEstado]);
+
+  const cambiarEstado = async (id: number, estado: EstadoEnvio) => {
+    await enviosService.actualizar(id, { estado });
+    cargarEnvios();
+  };
+
+const handleSubmit = async (e: FormEvent) => {
+  e.preventDefault();
+
+  try {
+    // Validación básica
+    if (!formData.idVenta) {
+      console.error('❌ Error: idVenta es requerido');
+      alert('Debe seleccionar un pedido');
+      return;
+    }
+
+    console.log('📦 Datos del formulario:', formData);
+
+    if (envioSeleccionado) {
+      await enviosService.actualizar(envioSeleccionado.id, formData);
+      alert('Envío actualizado correctamente');
+    } else {
+      await enviosService.crear(formData);
+      alert('Envío creado correctamente');
+    }
+
+    setShowModal(false);
+    setEnvioSeleccionado(null);
+    resetForm();
+    cargarEnvios();
+  } catch (error: any) {
+    console.error("❌ Error creando/actualizando envío:", error);
+    console.error("Detalles del error:", error.response?.data);
+    
+    const errorMsg = error.response?.data?.error || 
+                     error.response?.data || 
+                     error.message || 
+                     'Error desconocido';
+    
+    alert(`Error: ${errorMsg}`);
+  }
+};
+
+
+  const estadoColor = (estado: EstadoEnvio) => {
     switch (estado) {
       case "ENTREGADO": return "bg-green-100 text-green-800";
       case "EN_RUTA": return "bg-blue-100 text-blue-800";
       case "PENDIENTE": return "bg-yellow-100 text-yellow-800";
       case "CANCELADO": return "bg-red-100 text-red-800";
-      default: return "bg-gray-100 text-gray-800";
     }
   };
 
-  const cambiarEstado = async (id: number, estado: Envio["estado"]) => {
-    try {
-      await enviosService.actualizar(id, { estado });
-      cargarEnvios();
-    } catch (error) {
-      console.error("Error cambiando estado", error);
-    }
-  };
-
-const enviosFiltrados = envios.filter((envio) => {
-  const search = searchTerm.toLowerCase();
-
-  const pedidoId = envio.pedido?.id?.toString() ?? ""; // <-- seguro
-  const direccion = envio.direccionEnvio?.toLowerCase() ?? "";
-  const nombreRuta = envio.ruta?.nombre?.toLowerCase() ?? "";
-
-  const matchSearch =
-    pedidoId.includes(search) ||
-    direccion.includes(search) ||
-    nombreRuta.includes(search);
-
-  const matchEstado = !filterEstado || envio.estado === filterEstado;
-
-  return matchSearch && matchEstado;
-});
-
-console.log("Envios sin pedido:", enviosFiltrados.filter(e => !e?.pedido));
-
-
-const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
-
+  const enviosConPedido: Envio[] = envios.filter((e) => e.pedido != null);
   return (
     <div className="w-full p-4 sm:p-6 bg-gray-100 min-h-screen">
       <h1 className="text-2xl sm:text-3xl font-bold mb-6">GESTIÓN DE ENVÍOS</h1>
@@ -352,53 +256,56 @@ const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
         </div>
       </div>
 
-{/* Barra de acciones */}
-<div className="flex flex-col sm:flex-row gap-4 mb-6">
-  {/* Botón Crear Envío */}
-  <button
-    onClick={() => setShowModal(true)}
-    className="flex items-center gap-2 bg-black text-white px-4 sm:px-6 py-3 rounded-xl hover:bg-gray-800 w-full sm:w-auto justify-center"
-  >
-    <FiPlus />
-    CREAR ENVÍO
-  </button>
+      {/* Barra de acciones */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        {/* Botón Crear Envío */}
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 bg-black text-white px-4 sm:px-6 py-3 rounded-xl hover:bg-gray-800 w-full sm:w-auto justify-center"
+        >
+          <FiPlus />
+          CREAR ENVÍO
+        </button>
 
-  {/* Botones de acción adicionales */}
-  <div className="flex flex-wrap gap-2 sm:ml-4">
-     <VehiculoModal onSaved={cargarCombos} />
+        {/* Botones de acción adicionales */}
+        <div className="flex flex-wrap gap-2 sm:ml-4">
+          <VehiculoModal onSaved={cargarCombos} />
 
 
-    <ConductorModal onSaved={cargarCombos}></ConductorModal>
+          <ConductorModal onSaved={cargarCombos}></ConductorModal>
 
-    <RutaModal onSaved={cargarCombos}></RutaModal>
-  </div>
+          <RutaModal onSaved={cargarCombos}></RutaModal>
+        </div>
 
-  {/* Barra de búsqueda y filtro */}
-  <div className="flex-1 flex flex-col sm:flex-row gap-4 mt-2 sm:mt-0">
-    <div className="relative flex-1">
-      <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-      <input
-        type="text"
-        placeholder="Buscar por pedido, cliente o dirección..."
-        className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-      />
-    </div>
+        {/* Barra de búsqueda y filtro */}
+        <div className="flex-1 flex flex-col sm:flex-row gap-4 mt-2 sm:mt-0">
+          <div className="relative flex-1">
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Buscar por pedido, cliente o dirección..."
+              className="w-full pl-10 pr-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
 
-    <select
-      className="w-full sm:w-48 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-      value={filterEstado}
-      onChange={(e) => setFilterEstado(e.target.value)}
-    >
-      <option value="">Todos los estados</option>
-      <option value="PENDIENTE">Pendiente</option>
-      <option value="EN_RUTA">En Ruta</option>
-      <option value="ENTREGADO">Entregado</option>
-      <option value="CANCELADO">Cancelado</option>
-    </select>
-  </div>
-</div>
+          <select
+            className="w-full sm:w-48 px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            value={filterEstado}
+            onChange={(e) =>
+              setFilterEstado(e.target.value as "" | EstadoEnvio)
+            }
+          >
+            <option value="">Todos los estados</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="EN_RUTA">En Ruta</option>
+            <option value="ENTREGADO">Entregado</option>
+            <option value="CANCELADO">Cancelado</option>
+          </select>
+
+        </div>
+      </div>
 
 
       {/* Tabla desktop y móvil + modales */}
@@ -423,48 +330,49 @@ const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
               </tr>
             </thead>
             <tbody>
- {enviosConPedido.map((envio, index) => (
-            <tr key={envio.id ?? index} className="border-b hover:bg-gray-50">
-              <td className="p-3 font-medium">{envio.pedido.id}</td>
-              <td className="p-3">{envio.pedido.idCliente}</td>
-              <td className="p-3">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</td>
-              <td className="p-3">{envio.conductor?.nombre ?? "-"}</td>
-              <td className="p-3">{envio.ruta?.nombre ?? "-"}</td>
-              <td className="p-3 max-w-xs truncate">{envio.direccionEnvio ?? "-"}</td>
-              <td className="p-3">
-                <div className="text-xs">
-                  <div>Envío: {envio.fechaEnvio ?? "-"}</div>
-                  <div>Entrega: {envio.fechaEntrega ?? "Pendiente"}</div>
-                </div>
-              </td>
-              <td className="p-3">S/ {envio.costoTransporte ?? 0}</td>
-              <td className="p-3">
-                <select
-                  value={envio.estado ?? "PENDIENTE"}
-                  onChange={(e) => envio.id && cambiarEstado(envio.id, e.target.value as Envio["estado"])}
-                  className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado ?? "PENDIENTE")}`}
-                >
-                  <option value="PENDIENTE">PENDIENTE</option>
-                  <option value="EN_RUTA">EN RUTA</option>
-                  <option value="ENTREGADO">ENTREGADO</option>
-                  <option value="CANCELADO">CANCELADO</option>
-                </select>
-              </td>
-              <td className="p-3">
-                <div className="flex gap-2 justify-center">
-                  <button onClick={() => handleVerDetalles(envio)} className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
-                    <FiEye size={16} />
-                  </button>
-                  <button onClick={() => handleEditar(envio)} className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
-                    <FiEdit size={16} />
-                  </button>
-                  <button onClick={() => handleEliminar(envio)} className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
-                    <FiTrash2 size={16} />
-                  </button>
-                </div>
-              </td>
-            </tr>
-          ))}
+
+              {enviosConPedido.map((envio, index) => (
+                <tr key={envio.id ?? index} className="border-b hover:bg-gray-50">
+                  <td className="p-3 font-medium">{envio.pedido.id}</td>
+                  <td className="p-3">{envio.pedido.idCliente}</td>
+                  <td className="p-3">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</td>
+                  <td className="p-3">{envio.conductor?.nombre ?? "-"}</td>
+                  <td className="p-3">{envio.ruta?.nombre ?? "-"}</td>
+                  <td className="p-3 max-w-xs truncate">{envio.direccionEnvio ?? "-"}</td>
+                  <td className="p-3">
+                    <div className="text-xs">
+                      <div>Envío: {envio.fechaEnvio ?? "-"}</div>
+                      <div>Entrega: {envio.fechaEntrega ?? "Pendiente"}</div>
+                    </div>
+                  </td>
+                  <td className="p-3">S/ {envio.costoTransporte ?? 0}</td>
+                  <td className="p-3">
+                    <select
+                      value={envio.estado ?? "PENDIENTE"}
+                      onChange={(e) => envio.id && cambiarEstado(envio.id, e.target.value as Envio["estado"])}
+                      className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado ?? "PENDIENTE")}`}
+                    >
+                      <option value="PENDIENTE">PENDIENTE</option>
+                      <option value="EN_RUTA">EN RUTA</option>
+                      <option value="ENTREGADO">ENTREGADO</option>
+                      <option value="CANCELADO">CANCELADO</option>
+                    </select>
+                  </td>
+                  <td className="p-3">
+                    <div className="flex gap-2 justify-center">
+                      <button onClick={() => handleVerDetalles(envio)} className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">
+                        <FiEye size={16} />
+                      </button>
+                      <button onClick={() => handleEditar(envio)} className="p-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors">
+                        <FiEdit size={16} />
+                      </button>
+                      <button onClick={() => handleEliminar(envio)} className="p-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors">
+                        <FiTrash2 size={16} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
 
 
 
@@ -474,68 +382,68 @@ const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
 
         {/* Vista móvil */}
         <div className="lg:hidden p-4 space-y-4">
-      {enviosConPedido.map((envio) => (
-        <div key={envio.id} className="border rounded-lg p-4 bg-white shadow-sm">
-          <div className="space-y-3">
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold text-lg">Pedido: {envio.pedido.id}</p>
-                <p className="text-gray-600">Cliente: {envio.pedido.idCliente}</p>
-              </div>
-              <select
-                value={envio.estado ?? "PENDIENTE"}
-                onChange={(e) => cambiarEstado(envio.id, e.target.value as Envio["estado"])}
-                className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado ?? "PENDIENTE")}`}
-              >
-                <option value="PENDIENTE">PENDIENTE</option>
-                <option value="EN_RUTA">EN RUTA</option>
-                <option value="ENTREGADO">ENTREGADO</option>
-                <option value="CANCELADO">CANCELADO</option>
-              </select>
-            </div>
+          {enviosConPedido.map((envio) => (
+            <div key={envio.id} className="border rounded-lg p-4 bg-white shadow-sm">
+              <div className="space-y-3">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="font-semibold text-lg">Pedido: {envio.pedido.id}</p>
+                    <p className="text-gray-600">Cliente: {envio.pedido.idCliente}</p>
+                  </div>
+                  <select
+                    value={envio.estado ?? "PENDIENTE"}
+                    onChange={(e) => cambiarEstado(envio.id, e.target.value as Envio["estado"])}
+                    className={`px-2 py-1 rounded-full text-xs border-0 focus:ring-2 focus:ring-blue-500 ${estadoColor(envio.estado ?? "PENDIENTE")}`}
+                  >
+                    <option value="PENDIENTE">PENDIENTE</option>
+                    <option value="EN_RUTA">EN RUTA</option>
+                    <option value="ENTREGADO">ENTREGADO</option>
+                    <option value="CANCELADO">CANCELADO</option>
+                  </select>
+                </div>
 
-            {/* Info Vehículo y Conductor */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500">Vehículo</p>
-                <p className="font-medium">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Conductor</p>
-                <p className="font-medium">{envio.conductor?.nombre ?? "-"}</p>
-              </div>
-            </div>
+                {/* Info Vehículo y Conductor */}
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Vehículo</p>
+                    <p className="font-medium">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Conductor</p>
+                    <p className="font-medium">{envio.conductor?.nombre ?? "-"}</p>
+                  </div>
+                </div>
 
-            <div>
-              <p className="text-gray-500">Dirección</p>
-              <p className="font-medium text-sm">{envio.direccionEnvio ?? "-"}</p>
-            </div>
+                <div>
+                  <p className="text-gray-500">Dirección</p>
+                  <p className="font-medium text-sm">{envio.direccionEnvio ?? "-"}</p>
+                </div>
 
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-gray-500">Fecha Envío</p>
-                <p className="font-medium">{envio.fechaEnvio ?? "-"}</p>
-              </div>
-              <div>
-                <p className="text-gray-500">Costo</p>
-                <p className="font-medium">S/ {envio.costoTransporte ?? 0}</p>
-              </div>
-            </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-gray-500">Fecha Envío</p>
+                    <p className="font-medium">{envio.fechaEnvio ?? "-"}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray-500">Costo</p>
+                    <p className="font-medium">S/ {envio.costoTransporte ?? 0}</p>
+                  </div>
+                </div>
 
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => handleVerDetalles(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-colors">
-                <FiEye size={14} /> Ver
-              </button>
-              <button onClick={() => handleEditar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm transition-colors">
-                <FiEdit size={14} /> Editar
-              </button>
-              <button onClick={() => handleEliminar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm transition-colors">
-                <FiTrash2 size={14} /> Eliminar
-              </button>
+                <div className="flex gap-2 pt-2">
+                  <button onClick={() => handleVerDetalles(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm transition-colors">
+                    <FiEye size={14} /> Ver
+                  </button>
+                  <button onClick={() => handleEditar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm transition-colors">
+                    <FiEdit size={14} /> Editar
+                  </button>
+                  <button onClick={() => handleEliminar(envio)} className="flex-1 flex items-center justify-center gap-1 p-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm transition-colors">
+                    <FiTrash2 size={14} /> Eliminar
+                  </button>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
-      ))}
+          ))}
 
         </div>
       </div>
@@ -555,20 +463,23 @@ const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Pedido *</label>
-                  <select
-                    name="idVenta"
-                    value={formData.idVenta}
-                    onChange={handleInputChange}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  >
-                    <option value="">Seleccionar pedido</option>
-                    {pedidos.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.codigo} - {p.nombreCliente} (S/ {p.total})
-                      </option>
-                    ))}
-                  </select>
+              <select
+  name="idVenta"
+  value={formData.idVenta !== undefined ? formData.idVenta : ""} // <-- clave
+  onChange={handleInputChange}
+  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+  required
+>
+  <option value="">Seleccionar pedido</option>
+  {pedidos.map(p => (
+    <option key={p.id} value={p.id}>
+      {p.codigo} - {p.nombreCliente} (S/ {p.total})
+    </option>
+  ))}
+</select>
+
+
+
                 </div>
 
                 <div>
@@ -603,7 +514,7 @@ const enviosConPedido = enviosFiltrados.filter(e => e.pedido);
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Envío *</label>
-                    <input type="date" name="fecharRegistro" value={formData.fechaRegistro} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
+                    <input type="date" name="fechaRegistro" value={formData.fechaRegistro} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Entrega</label>

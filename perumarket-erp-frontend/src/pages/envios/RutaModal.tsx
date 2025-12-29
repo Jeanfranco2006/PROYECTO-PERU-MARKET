@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type FormEvent } from "react";
-import { api } from "../../services/api";
+import { RutaService } from "../../services/envios/rutaService";
+
 
 interface Props {
   onSaved?: () => void;
@@ -8,26 +9,40 @@ interface Props {
 export default function RutaModal({ onSaved }: Props) {
   const [show, setShow] = useState(false);
   const [form, setForm] = useState({
+    nombre: "",
     origen: "",
     destino: "",
     distancia_km: "",
-    estado: "ACTIVA"
+    tiempo_estimado_horas: "",
+    costo_base: ""
   });
 
-  const handleChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setForm(prev => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    await api.post("/rutas", {
-      ...form,
-      distancia_km: Number(form.distancia_km)
-    });
-    setShow(false);
-    setForm({ origen: "", destino: "", distancia_km: "", estado: "ACTIVA" });
-    onSaved?.();
+    try {
+      await RutaService.crearRuta({
+        nombre: form.nombre,
+        origen: form.origen,
+        destino: form.destino,
+        distancia_km: form.distancia_km ? Number(form.distancia_km) : null,
+        tiempo_estimado_horas: form.tiempo_estimado_horas ? Number(form.tiempo_estimado_horas) : null,
+        costo_base: form.costo_base ? Number(form.costo_base) : null
+      });
+
+
+
+      setShow(false);
+      setForm({ nombre: "", origen: "", destino: "", distancia_km: "", tiempo_estimado_horas: "", costo_base: "" });
+      onSaved?.();
+    } catch (error) {
+      console.error("Error creando ruta:", error);
+      alert("Ocurrió un error al crear la ruta.");
+    }
   };
 
   return (
@@ -45,16 +60,14 @@ export default function RutaModal({ onSaved }: Props) {
             <h2 className="text-lg font-bold mb-4">Registrar Ruta</h2>
 
             <form onSubmit={handleSubmit} className="space-y-3">
-              <input name="origen" placeholder="Origen" value={form.origen} onChange={handleChange} className="input" />
-              <input name="destino" placeholder="Destino" value={form.destino} onChange={handleChange} className="input" />
-              <input type="number" name="distancia_km" placeholder="Distancia (km)" value={form.distancia_km} onChange={handleChange} className="input" />
+              <input name="nombre" placeholder="Nombre de la ruta" value={form.nombre} onChange={handleChange} className="input" required />
+              <input name="origen" placeholder="Origen" value={form.origen} onChange={handleChange} className="input" required />
+              <input name="destino" placeholder="Destino" value={form.destino} onChange={handleChange} className="input" required />
+              <input type="number" name="distancia_km" placeholder="Distancia (km)" value={form.distancia_km ?? ""} onChange={handleChange} className="input" />
+              <input type="number" step="0.01" name="tiempo_estimado_horas" placeholder="Tiempo estimado (horas)" value={form.tiempo_estimado_horas ?? ""} onChange={handleChange} className="input" />
+              <input type="number" step="0.01" name="costo_base" placeholder="Costo base" value={form.costo_base ?? ""} onChange={handleChange} className="input" />
 
-              <select name="estado" value={form.estado} onChange={handleChange} className="input">
-                <option value="ACTIVA">ACTIVA</option>
-                <option value="INACTIVA">INACTIVA</option>
-              </select>
-
-              <div className="flex justify-end gap-2 pt-4">
+              <div className="flex justify-end gap-3 mt-4">
                 <button type="button" onClick={() => setShow(false)} className="btn-secondary">Cancelar</button>
                 <button type="submit" className="btn-primary">Guardar</button>
               </div>
@@ -65,3 +78,4 @@ export default function RutaModal({ onSaved }: Props) {
     </>
   );
 }
+

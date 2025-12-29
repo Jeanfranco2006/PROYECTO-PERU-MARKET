@@ -13,24 +13,25 @@ export default function VehiculoModal({ onSaved }: { onSaved?: () => void }) {
 
 
   
-  onSaved?.(); // 👈 refresca combos
+
 
   const handleVehiculoChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setVehiculoForm(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmitVehiculo = async (e: FormEvent) => {
-    e.preventDefault();
-    try {
-      await api.post('/vehiculos', vehiculoForm); // Endpoint backend
-      setShowModalVehiculo(false);
-      setVehiculoForm({ placa: '', marca: '', modelo: '', capacidad_kg: '', estado: 'DISPONIBLE' });
-      // Aquí puedes refrescar la lista de vehículos si tienes un combo
-    } catch (err) {
-      console.error(err);
-    }
-  };
+const handleSubmitVehiculo = async (e: FormEvent) => {
+  e.preventDefault();
+  try {
+    await api.post('/vehiculos', vehiculoForm);
+    setShowModalVehiculo(false);
+    setVehiculoForm({ placa: '', marca: '', modelo: '', capacidad_kg: '', estado: 'DISPONIBLE' });
+    onSaved?.(); // 🔹 Aquí sí
+  } catch (err) {
+    console.error(err);
+  }
+};
+
 
   return (
     <>

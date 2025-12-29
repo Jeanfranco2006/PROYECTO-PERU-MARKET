@@ -1,8 +1,9 @@
+import type { Conductor } from "../../types/Conductor/conductor";
 import { api } from "../api";
 
 
 export const ConductorService = {
-  listarTodos: async () => {
+  listarTodos: async (): Promise<Conductor[]> => {
     try {
       const response = await api.get("/conductores");
       return response.data;
@@ -12,7 +13,7 @@ export const ConductorService = {
     }
   },
 
-  listarDisponibles: async () => {
+  listarDisponibles: async (): Promise<Conductor[]> => {
     try {
       const response = await api.get("/conductores/disponibles");
       return response.data;
@@ -22,13 +23,9 @@ export const ConductorService = {
     }
   },
 
-  crearConductor: async (data: {
-    idPersona: number;
-    licencia: string;
-    categoriaLicencia: string;
-  }) => {
+  crearConductor: async (conductor: Conductor): Promise<Conductor> => {
     try {
-      const response = await api.post("/conductores", data);
+      const response = await api.post("/conductores", conductor);
       return response.data;
     } catch (error: any) {
       console.error("Error creando conductor:", error);

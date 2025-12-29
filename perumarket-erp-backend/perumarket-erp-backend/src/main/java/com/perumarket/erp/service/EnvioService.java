@@ -1,5 +1,6 @@
 package com.perumarket.erp.service;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 
@@ -51,18 +52,36 @@ public class EnvioService {
     }
 @Transactional
 public Envio crearEnvio(CrearEnvioDTO dto) {
-    // Buscar el pedido asociado a la venta
     Pedido pedido = pedidoRepository.findByVentaId(dto.getIdVenta())
             .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
-    // Crear el envío
     Envio envio = new Envio();
     envio.setPedido(pedido);
     envio.setEstado(Envio.EstadoEnvio.PENDIENTE);
-    envio.setFechaEnvio(null); // Se asigna cuando se despacha
-    envio.setObservaciones("");
+    envio.setFechaEnvio(null);
+    envio.setDireccionEnvio(dto.getDireccionEnvio());
+    envio.setFechaEntrega(dto.getFechaEntrega() != null ? LocalDate.parse(dto.getFechaEntrega()) : null);
+    envio.setCostoTransporte(dto.getCostoTransporte());
+    envio.setObservaciones(dto.getObservaciones());
 
-    // Guardar en BD
+    if (dto.getIdVehiculo() != null) {
+        Vehiculo vehiculo = vehiculoRepository.findById(dto.getIdVehiculo())
+                .orElseThrow(() -> new RuntimeException("Vehículo no encontrado"));
+        envio.setVehiculo(vehiculo);
+    }
+
+    if (dto.getIdConductor() != null) {
+        Conductor conductor = conductorRepository.findById(dto.getIdConductor())
+                .orElseThrow(() -> new RuntimeException("Conductor no encontrado"));
+        envio.setConductor(conductor);
+    }
+
+    if (dto.getIdRuta() != null) {
+        Ruta ruta = rutaRepository.findById(dto.getIdRuta())
+                .orElseThrow(() -> new RuntimeException("Ruta no encontrada"));
+        envio.setRuta(ruta);
+    }
+
     return envioRepository.save(envio);
 }
 
