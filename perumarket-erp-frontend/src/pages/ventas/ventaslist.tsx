@@ -6,8 +6,7 @@ import ModalPago from './ModalPago';
 import type { Cliente } from '../../types/clientes/Client';
 import type { DetallePago, MetodoPago, Producto, ProductoVenta } from '../../types/ventas/ventas';
 import { ventaService } from '../../services/ventas/ventaService';
-import { enviosService } from '../../services/envios/envioServices';
-import type { CrearEnvioDTO } from '../../types/envios/envio';
+
 
 
 const ProductImage = ({

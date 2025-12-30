@@ -37,26 +37,26 @@ export interface Envio {
   observaciones?: string;
 }
 
-export interface CrearEnvioDTO {
-  idVenta: number; // 🔥 OBLIGATORIO
-  estado: 'PENDIENTE' | 'EN_RUTA' | 'ENTREGADO' | 'CANCELADO';
-  fechaRegistro: string;
-
-  productos: {
-    idProducto: number;
-    cantidad: number;
-  }[];
-}
-
-export type ActualizarEnvioDTO = Partial<CrearEnvioDTO>;
-
-
-
-export interface FormDataEnvio extends CrearEnvioDTO {
+export interface ActualizarEnvioDTO {
   idVehiculo?: number;
   idConductor?: number;
   idRuta?: number;
 
+  direccionEnvio?: string;
+  fechaEnvio?: string;
+  fechaEntrega?: string;
+  costoTransporte?: number;
+
+  estado?: 'PENDIENTE' | 'EN_RUTA' | 'ENTREGADO' | 'CANCELADO';
+  observaciones?: string;
+}
+
+
+export interface FormDataEnvio extends ActualizarEnvioDTO {
+  idVehiculo?: number;
+  idConductor?: number;
+  idRuta?: number;
+  idVenta?:number;
   direccionEnvio?: string;
   fechaEnvio?: string;
   fechaEntrega?: string;

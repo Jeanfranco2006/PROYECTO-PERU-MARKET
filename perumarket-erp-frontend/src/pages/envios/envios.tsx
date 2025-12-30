@@ -30,37 +30,33 @@ export default function Envios() {
 
   // Estado del formulario
   const [formData, setFormData] = useState<FormDataEnvio>({
-    idVenta: undefined,
-    idCliente: undefined,
     idVehiculo: undefined,
     idConductor: undefined,
     idRuta: undefined,
     direccionEnvio: "",
-    fechaRegistro: new Date().toISOString().slice(0, 10), // yyyy-mm-dd
+    fechaEnvio: "",
     fechaEntrega: "",
     costoTransporte: 0,
     estado: "PENDIENTE",
-    observaciones: "",
-    productos: [], // obligatorio
+    observaciones: ""
   });
+
 
   // Función para reiniciar el formulario
   const resetForm = () => {
     setFormData({
-      idVenta: undefined,
-      idCliente: undefined,
       idVehiculo: undefined,
       idConductor: undefined,
       idRuta: undefined,
       direccionEnvio: "",
-      fechaRegistro: new Date().toISOString().slice(0, 10),
+      fechaEnvio: "",
       fechaEntrega: "",
       costoTransporte: 0,
       estado: "PENDIENTE",
-      observaciones: "",
-      productos: [], // obligatorio
+      observaciones: ""
     });
   };
+
 
 
 
@@ -92,16 +88,16 @@ export default function Envios() {
   };
 
 
-const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
-  const { name, value } = e.target;
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
 
-  setFormData(prev => ({
-    ...prev,
-    [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
-      ? value === "" ? undefined : Number(value)
-      : value
-  }));
-};
+    setFormData(prev => ({
+      ...prev,
+      [name]: ["idVenta", "idVehiculo", "idConductor", "idRuta"].includes(name)
+        ? value === "" ? undefined : Number(value)
+        : value
+    }));
+  };
 
   const cargarEnvios = async () => {
     const data = await enviosService.listar();
@@ -112,7 +108,7 @@ const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement |
     try {
       const pedidosRes = await enviosService.listarPedidosPendientes();
       console.log("Pedidos disponibles:", pedidosRes);
-      console.log("formData.idVenta", formData.idVenta);
+
 
       setPedidos(pedidosRes || []);
 
@@ -155,43 +151,49 @@ const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement |
     cargarEnvios();
   };
 
-const handleSubmit = async (e: FormEvent) => {
+ const handleSubmit = async (e: FormEvent) => {
   e.preventDefault();
 
   try {
-    // Validación básica
-    if (!formData.idVenta) {
-      console.error('❌ Error: idVenta es requerido');
-      alert('Debe seleccionar un pedido');
-      return;
-    }
-
-    console.log('📦 Datos del formulario:', formData);
-
     if (envioSeleccionado) {
-      await enviosService.actualizar(envioSeleccionado.id, formData);
-      alert('Envío actualizado correctamente');
+      // ✅ ACTUALIZAR ENVÍO EXISTENTE
+      await enviosService.actualizar(envioSeleccionado.id, {
+        idVehiculo: formData.idVehiculo,
+        idConductor: formData.idConductor,
+        idRuta: formData.idRuta,
+        fechaEntrega: formData.fechaEntrega,
+        estado: formData.estado,
+        observaciones: formData.observaciones
+      });
+
+      alert("✅ Envío actualizado correctamente");
+
     } else {
-      await enviosService.crear(formData);
-      alert('Envío creado correctamente');
+      // ✅ CREAR ENVÍO NUEVO
+      await enviosService.crear({
+        idVenta: formData.idVenta!,
+        direccionEnvio: formData.direccionEnvio,
+        fechaEnvio: formData.fechaEnvio,
+        idVehiculo: formData.idVehiculo,
+        idConductor: formData.idConductor,
+        idRuta: formData.idRuta,
+        observaciones: formData.observaciones
+      });
+
+      alert("✅ Envío creado correctamente");
     }
 
     setShowModal(false);
     setEnvioSeleccionado(null);
     resetForm();
     cargarEnvios();
+
   } catch (error: any) {
-    console.error("❌ Error creando/actualizando envío:", error);
-    console.error("Detalles del error:", error.response?.data);
-    
-    const errorMsg = error.response?.data?.error || 
-                     error.response?.data || 
-                     error.message || 
-                     'Error desconocido';
-    
-    alert(`Error: ${errorMsg}`);
+    console.error("❌ Error guardando envío:", error);
+    alert(error.response?.data || error.message);
   }
 };
+
 
 
   const estadoColor = (estado: EstadoEnvio) => {
@@ -264,7 +266,7 @@ const handleSubmit = async (e: FormEvent) => {
           className="flex items-center gap-2 bg-black text-white px-4 sm:px-6 py-3 rounded-xl hover:bg-gray-800 w-full sm:w-auto justify-center"
         >
           <FiPlus />
-          CREAR ENVÍO
+          GESTIONAR ENVÍO
         </button>
 
         {/* Botones de acción adicionales */}
@@ -334,7 +336,7 @@ const handleSubmit = async (e: FormEvent) => {
               {enviosConPedido.map((envio, index) => (
                 <tr key={envio.id ?? index} className="border-b hover:bg-gray-50">
                   <td className="p-3 font-medium">{envio.pedido.id}</td>
-                  <td className="p-3">{envio.pedido.idCliente}</td>
+                  <td className="p-3">{envio.pedido.cliente.nombre}</td>
                   <td className="p-3">{envio.vehiculo?.marca ?? "-"} {envio.vehiculo?.modelo ?? ""}</td>
                   <td className="p-3">{envio.conductor?.nombre ?? "-"}</td>
                   <td className="p-3">{envio.ruta?.nombre ?? "-"}</td>
@@ -388,7 +390,7 @@ const handleSubmit = async (e: FormEvent) => {
                 <div className="flex justify-between items-start">
                   <div>
                     <p className="font-semibold text-lg">Pedido: {envio.pedido.id}</p>
-                    <p className="text-gray-600">Cliente: {envio.pedido.idCliente}</p>
+                    <p className="text-gray-600">Cliente: {envio.pedido.cliente.nombre}</p>
                   </div>
                   <select
                     value={envio.estado ?? "PENDIENTE"}
@@ -463,20 +465,20 @@ const handleSubmit = async (e: FormEvent) => {
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Pedido *</label>
-              <select
-  name="idVenta"
-  value={formData.idVenta !== undefined ? formData.idVenta : ""} // <-- clave
-  onChange={handleInputChange}
-  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-  required
->
-  <option value="">Seleccionar pedido</option>
-  {pedidos.map(p => (
-    <option key={p.id} value={p.id}>
-      {p.codigo} - {p.nombreCliente} (S/ {p.total})
-    </option>
-  ))}
-</select>
+                  <select
+                    name="idVenta"
+                    value={formData.idVenta !== undefined ? formData.idVenta : ""} // <-- clave
+                    onChange={handleInputChange}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Seleccionar pedido</option>
+                    {pedidos.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.codigo} - {p.nombreCliente} (S/ {p.total})
+                      </option>
+                    ))}
+                  </select>
 
 
 
@@ -514,7 +516,7 @@ const handleSubmit = async (e: FormEvent) => {
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Envío *</label>
-                    <input type="date" name="fechaRegistro" value={formData.fechaRegistro} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
+                    <input type="date" name="fechaEnvio" value={formData.fechaEnvio} onChange={handleInputChange} className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" required />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Fecha de Entrega</label>
@@ -561,7 +563,7 @@ const handleSubmit = async (e: FormEvent) => {
             </div>
             <div className="p-6 space-y-4 grid grid-cols-2 gap-4">
               <div><p className="text-gray-600 text-sm">Pedido</p><p className="font-semibold">{envioSeleccionado.pedido.id}</p></div>
-              <div><p className="text-gray-600 text-sm">Cliente</p><p className="font-semibold">{envioSeleccionado.pedido.idCliente}</p></div>
+              <div><p className="text-gray-600 text-sm">Cliente</p><p className="font-semibold">{envioSeleccionado.pedido.cliente.nombre}</p></div>
               <div><p className="text-gray-600 text-sm">Vehículo</p><p className="font-semibold">{envioSeleccionado.vehiculo?.marca} {envioSeleccionado.vehiculo?.modelo}</p></div>
               <div><p className="text-gray-600 text-sm">Conductor</p><p className="font-semibold">{envioSeleccionado.conductor?.nombre}</p></div>
               <div><p className="text-gray-600 text-sm">Ruta</p><p className="font-semibold">{envioSeleccionado.ruta?.nombre}</p></div>
