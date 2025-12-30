@@ -31,16 +31,19 @@ public List<Pedido> listarPedidosPendientes() {
 
 @Transactional(readOnly = true)
 public List<PedidoDTO> listarPedidosPendientesDTO() {
-    return pedidoRepository.findByEstado(Pedido.EstadoPedido.PENDIENTE)
+    return pedidoRepository.findPedidosPendientesConVentaYEnvio()
         .stream()
-        .map(p -> new PedidoDTO(
-            p.getId(),
-            "PED-" + p.getId(), // si no tienes código
-            p.getCliente() != null && p.getCliente().getPersona() != null 
-                ? p.getCliente().getPersona().getNombres() 
-                : "Sin cliente",
-            p.getTotal()
-        ))
+       .map(p -> new PedidoDTO(
+    p.getId(),
+    "PED-" + p.getId(),
+    p.getCliente() != null && p.getCliente().getPersona() != null
+        ? p.getCliente().getPersona().getNombres()
+        : "Sin cliente",
+    p.getTotal(),
+    p.getVenta() != null ? p.getVenta().getId() : null,
+    p.getEnvio() != null
+))
+
         .toList();
 }
 

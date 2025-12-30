@@ -98,6 +98,18 @@ public List<EnvioDTO> listarEnvios() {
         );
     }).toList();
 }
+@PutMapping("/{id}")
+public ResponseEntity<?> actualizarEnvio(
+        @PathVariable Long id,
+        @RequestBody AsignarEnvioDTO dto
+) {
+    try {
+        Envio envioActualizado = envioService.actualizarEnvio(id, dto);
+        return ResponseEntity.ok(envioActualizado);
+    } catch (RuntimeException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+    }
+}
 
 
 }

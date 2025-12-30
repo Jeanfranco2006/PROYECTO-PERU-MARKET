@@ -68,9 +68,24 @@ export default function Envios() {
 
   // Función para editar
   const handleEditar = (envio: Envio) => {
-    setEnvioSeleccionado(envio);
-    setShowModal(true); // asumiendo que showModal abre el modal de creación/edición
-  };
+  setEnvioSeleccionado(envio);
+
+  setFormData({
+    idVenta: envio.pedido.id, // solo informativo
+    idVehiculo: envio.vehiculo?.id,
+    idConductor: envio.conductor?.id,
+    idRuta: envio.ruta?.id,
+    direccionEnvio: envio.direccionEnvio ?? "",
+    fechaEnvio: envio.fechaEnvio ?? "",
+    fechaEntrega: envio.fechaEntrega ?? "",
+    costoTransporte: envio.costoTransporte ?? 0,
+    estado: envio.estado,
+    observaciones: envio.observaciones ?? ""
+  });
+
+  setShowModal(true);
+};
+
 
   // Función para eliminar
   const handleEliminar = (envio: Envio) => {
@@ -151,38 +166,28 @@ export default function Envios() {
     cargarEnvios();
   };
 
- const handleSubmit = async (e: FormEvent) => {
+const handleSubmit = async (e: FormEvent) => {
   e.preventDefault();
 
+  if (!envioSeleccionado?.id) {
+    alert("Debe seleccionar un envío");
+    return;
+  }
+
   try {
-    if (envioSeleccionado) {
-      // ✅ ACTUALIZAR ENVÍO EXISTENTE
-      await enviosService.actualizar(envioSeleccionado.id, {
-        idVehiculo: formData.idVehiculo,
-        idConductor: formData.idConductor,
-        idRuta: formData.idRuta,
-        fechaEntrega: formData.fechaEntrega,
-        estado: formData.estado,
-        observaciones: formData.observaciones
-      });
+    await enviosService.actualizar(envioSeleccionado.id, {
+      idVehiculo: formData.idVehiculo,
+      idConductor: formData.idConductor,
+      idRuta: formData.idRuta,
+      direccionEnvio: formData.direccionEnvio,
+      fechaEnvio: formData.fechaEnvio,
+      fechaEntrega: formData.fechaEntrega,
+      costoTransporte: formData.costoTransporte,
+      estado: formData.estado,
+      observaciones: formData.observaciones
+    });
 
-      alert("✅ Envío actualizado correctamente");
-
-    } else {
-      // ✅ CREAR ENVÍO NUEVO
-      await enviosService.crear({
-        idVenta: formData.idVenta!,
-        direccionEnvio: formData.direccionEnvio,
-        fechaEnvio: formData.fechaEnvio,
-        idVehiculo: formData.idVehiculo,
-        idConductor: formData.idConductor,
-        idRuta: formData.idRuta,
-        observaciones: formData.observaciones
-      });
-
-      alert("✅ Envío creado correctamente");
-    }
-
+    alert("✅ Envío actualizado correctamente");
     setShowModal(false);
     setEnvioSeleccionado(null);
     resetForm();
@@ -193,6 +198,7 @@ export default function Envios() {
     alert(error.response?.data || error.message);
   }
 };
+
 
 
 

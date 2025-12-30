@@ -128,5 +128,40 @@ public Envio crearEnvio(CrearEnvioDTO dto) {
 
         return envioRepository.save(envio);
     }
+@Transactional
+public Envio actualizarEnvio(Long id, AsignarEnvioDTO dto) {
+
+    Envio envio = envioRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+
+    if (dto.getIdVehiculo() != null) {
+        envio.setVehiculo(
+            vehiculoRepository.findById(dto.getIdVehiculo())
+                    .orElseThrow(() -> new RuntimeException("Vehículo no encontrado"))
+        );
+    }
+
+    if (dto.getIdConductor() != null) {
+        envio.setConductor(
+            conductorRepository.findById(dto.getIdConductor())
+                    .orElseThrow(() -> new RuntimeException("Conductor no encontrado"))
+        );
+    }
+
+    if (dto.getIdRuta() != null) {
+        envio.setRuta(
+            rutaRepository.findById(dto.getIdRuta())
+                    .orElseThrow(() -> new RuntimeException("Ruta no encontrada"))
+        );
+    }
+
+    envio.setDireccionEnvio(dto.getDireccionEnvio());
+    envio.setFechaEnvio(dto.getFechaEnvio() != null ? LocalDate.parse(dto.getFechaEnvio()) : null);
+    envio.setFechaEntrega(dto.getFechaEntrega() != null ? LocalDate.parse(dto.getFechaEntrega()) : null);
+    envio.setEstado(Envio.EstadoEnvio.valueOf(dto.getEstado()));
+    envio.setObservaciones(dto.getObservaciones());
+
+    return envioRepository.save(envio);
+}
 
 }
