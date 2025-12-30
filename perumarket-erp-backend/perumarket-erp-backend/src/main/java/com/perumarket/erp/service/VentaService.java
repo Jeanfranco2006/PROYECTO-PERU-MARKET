@@ -35,82 +35,77 @@ public class VentaService {
     private final UsuarioRepository usuarioRepository;
     private final ProductoRepository productoRepository;
     private final ClienteRepository clienteRepository;
+    private final EnvioRepository envioRepository;
 
-    @Transactional
-    public Venta procesarVenta(VentaDTO dto) {
-        Usuario usuario = usuarioRepository.findUsuarioById(dto.getIdUsuario().longValue())
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con ID: " + dto.getIdUsuario()));
 
-        Venta venta = new Venta();
-        venta.setUsuario(usuario);
-        venta.setIdCliente(dto.getIdCliente());
-        venta.setIdAlmacen(dto.getIdAlmacen());
-        venta.setSubtotal(dto.getSubtotal());
-        venta.setDescuentoTotal(dto.getDescuentoTotal() != null ? dto.getDescuentoTotal() : 0.0);
-        venta.setIgv(dto.getIgv());
-        venta.setTotal(dto.getTotal());
-        venta.setEstado(Venta.EstadoVenta.PENDIENTE);
-        venta.setFecha(LocalDateTime.now());
+  @Transactional
+public Venta procesarVenta(VentaDTO dto) {
 
-        List<DetalleVenta> detalles = new ArrayList<>();
+    Usuario usuario = usuarioRepository.findUsuarioById(dto.getIdUsuario().longValue())
+            .orElseThrow(() -> new RuntimeException("Usuario no encontrado"));
 
-        if (dto.getDetalles() != null) {
-            for (DetalleVentaDTO det : dto.getDetalles()) {
-                Optional<Inventario> invOpt = inventarioRepository.findByProductoIdAndAlmacenId(
-                        det.getIdProducto(), dto.getIdAlmacen());
-                if (invOpt.isEmpty()) {
-                    throw new RuntimeException("Inventario no encontrado para producto ID: " + det.getIdProducto());
-                }
+    Venta venta = new Venta();
+    venta.setUsuario(usuario);
+    venta.setIdCliente(dto.getIdCliente());
+    venta.setIdAlmacen(dto.getIdAlmacen());
+    venta.setSubtotal(dto.getSubtotal());
+    venta.setDescuentoTotal(dto.getDescuentoTotal() != null ? dto.getDescuentoTotal() : 0.0);
+    venta.setIgv(dto.getIgv());
+    venta.setTotal(dto.getTotal());
+    venta.setEstado(Venta.EstadoVenta.PENDIENTE);
+    venta.setFecha(LocalDateTime.now());
 
-                Inventario inventario = invOpt.get();
-                if (inventario.getStockActual() < det.getCantidad()) {
-                    throw new RuntimeException(
-                            "Stock insuficiente para producto: " + inventario.getProducto().getNombre() +
-                                    " | Stock actual: " + inventario.getStockActual() +
-                                    ", Cantidad solicitada: " + det.getCantidad());
-                }
+    List<DetalleVenta> detalles = new ArrayList<>();
 
-                inventario.setStockActual(inventario.getStockActual() - det.getCantidad());
-                inventarioRepository.save(inventario);
+    for (DetalleVentaDTO det : dto.getDetalles()) {
+        Inventario inventario = inventarioRepository
+                .findByProductoIdAndAlmacenId(det.getIdProducto(), dto.getIdAlmacen())
+                .orElseThrow(() -> new RuntimeException("Inventario no encontrado"));
 
-                // --- AGREGAR ESTO: Actualizar también el stock global en la tabla PRODUCTO ---
-                Producto producto = inventario.getProducto();
-                int stockGlobalActual = producto.getStock() != null ? producto.getStock() : 0;
-                // Evitamos que el stock global sea negativo
-                int nuevoStockGlobal = Math.max(0, stockGlobalActual - det.getCantidad());
-
-                DetalleVenta detalleVenta = new DetalleVenta();
-                detalleVenta.setIdProducto(det.getIdProducto());
-                detalleVenta.setCantidad(det.getCantidad());
-                detalleVenta.setPrecioUnitario(det.getPrecioUnitario());
-                detalleVenta.setSubtotal(det.getSubtotal());
-                detalleVenta.setVenta(venta);
-                detalles.add(detalleVenta);
-            }
+        if (inventario.getStockActual() < det.getCantidad()) {
+            throw new RuntimeException("Stock insuficiente");
         }
 
-        venta.setDetalles(detalles);
-        Venta ventaGuardada = ventaRepository.save(venta);
+        inventario.setStockActual(inventario.getStockActual() - det.getCantidad());
+        inventarioRepository.save(inventario);
 
-        /* Ultimos cambios venta */
-        // Crear Pedido asociado a la venta
-        Pedido pedido = new Pedido();
-
-        Cliente cliente = clienteRepository.findById(dto.getIdCliente().longValue())
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
-        pedido.setVenta(ventaGuardada);
-        pedido.setCliente(cliente);
-        pedido.setEstado(Pedido.EstadoPedido.PENDIENTE);
-        pedido.setTotal(BigDecimal.valueOf(ventaGuardada.getTotal()));
-
-        pedidoRepository.save(pedido);
-
-        Envio envio = new Envio();
-        envio.setPedido(pedido);
-        envio.setEstado(Envio.EstadoEnvio.PENDIENTE);
-        envio.setFechaEnvio(LocalDate.now()); // fecha de registro
-        return ventaGuardada;
+        DetalleVenta dv = new DetalleVenta();
+        dv.setIdProducto(det.getIdProducto());
+        dv.setCantidad(det.getCantidad());
+        dv.setPrecioUnitario(det.getPrecioUnitario());
+        dv.setSubtotal(det.getSubtotal());
+        dv.setVenta(venta);
+        detalles.add(dv);
     }
+
+    venta.setDetalles(detalles);
+    Venta ventaGuardada = ventaRepository.save(venta);
+
+    // ✅ CREAR PEDIDO
+    Cliente cliente = clienteRepository.findById(dto.getIdCliente().longValue())
+            .orElseThrow(() -> new RuntimeException("Cliente no encontrado"));
+
+    Pedido pedido = new Pedido();
+    pedido.setVenta(ventaGuardada);
+    pedido.setCliente(cliente);
+    pedido.setEstado(Pedido.EstadoPedido.PENDIENTE);
+    pedido.setTotal(BigDecimal.valueOf(ventaGuardada.getTotal()));
+    pedido.setFechaPedido(LocalDateTime.now()); // 🔥 CLAVE
+
+    pedidoRepository.save(pedido);
+
+    // ✅ CREAR ENVÍO AUTOMÁTICO
+Envio envio = new Envio();
+envio.setPedido(pedido);
+envio.setEstado(Envio.EstadoEnvio.PENDIENTE);
+envio.setFechaEnvio(LocalDate.now()); // o LocalDateTime si tu entidad lo usa
+
+envioRepository.save(envio);
+
+
+    return ventaGuardada;
+}
+
 
     @Transactional(readOnly = true)
     public VentaResponseDTO obtenerVentaConDetallesConImagen(Integer ventaId) {

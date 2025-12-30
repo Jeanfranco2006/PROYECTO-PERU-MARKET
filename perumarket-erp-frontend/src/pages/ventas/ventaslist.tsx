@@ -9,6 +9,7 @@ import { ventaService } from '../../services/ventas/ventaService';
 import { enviosService } from '../../services/envios/envioServices';
 import type { CrearEnvioDTO } from '../../types/envios/envio';
 
+
 const ProductImage = ({
   src,
   alt,
@@ -206,112 +207,73 @@ const VentasList: React.FC = () => {
     setMostrarModalPago(true);
   };
 
-  const procesarVenta = async (detallesPago: DetallePago[]) => {
-    try {
-      if (!clienteSeleccionado || !clienteSeleccionado.id) {
-        alert("⚠️ Selecciona un cliente válido primero");
-        return;
-      }
-      if (carrito.length === 0) {
-        alert("⚠️ Agrega productos al carrito primero");
-        return;
-      }
-
-      const totalPagos = detallesPago.reduce((sum, pago) => sum + pago.monto, 0);
-      const { total } = ventaService.calcularTotales(carrito);
-
-      if (Math.abs(totalPagos - total) > 0.01) {
-        alert(`⚠️ El total de los pagos (S/ ${totalPagos.toFixed(2)}) no coincide con el total de la venta (S/ ${total.toFixed(2)})`);
-        return;
-      }
-
-      const { idUsuario, idAlmacen } = ventaService.obtenerDatosSesion();
-      const { subtotal, igv, total: totalVenta } = ventaService.calcularTotales(carrito);
-
-      const ventaBody = {
-        idCliente: clienteSeleccionado.id,
-        idUsuario,
-        idAlmacen,
-        subtotal,
-        igv,
-        total: totalVenta,
-        detalles: carrito.map(item => ({
-          idProducto: item.producto.id,
-          cantidad: item.cantidad,
-          precioUnitario: item.producto.precio,
-          subtotal: item.subtotal
-        })),
-        pagos: detallesPago.map(pago => ({
-          id_metodo_pago: pago.id_metodo_pago,
-          monto: pago.monto,
-          referencia: pago.referencia || ''
-        }))
-      };
-
-      // 1. Enviar venta al backend (El backend ya descuenta el stock)
-      const resultado = await ventaService.procesarVenta(ventaBody);
-
-      /*Para vincular a la venta con envio*/ 
-      // 2. Crear envío automáticamente
-await enviosService.crear({
-   idVenta: resultado.id, // esto debe coincidir
-  idCliente: clienteSeleccionado.id,
-  estado: "PENDIENTE",
-  fechaRegistro: new Date().toISOString(),
-  productos: carrito.map(item => ({
-    idProducto: item.producto.id,
-    cantidad: item.cantidad
-  }))
-});
-
-const procesarVenta = async () => {
+const procesarVenta = async (detallesPago: DetallePago[]) => {
   try {
-    // 1️⃣ Crear la venta
+    if (!clienteSeleccionado?.id) {
+      alert("⚠️ Selecciona un cliente válido");
+      return;
+    }
+
+    if (carrito.length === 0) {
+      alert("⚠️ Agrega productos al carrito");
+      return;
+    }
+
+    // 🔹 Validar pagos
+    const totalPagos = detallesPago.reduce((sum, pago) => sum + pago.monto, 0);
+    const { subtotal, igv, total } = ventaService.calcularTotales(carrito);
+
+    if (Math.abs(totalPagos - total) > 0.01) {
+      alert("⚠️ El total de pagos no coincide con la venta");
+      return;
+    }
+
+    const { idUsuario, idAlmacen } = ventaService.obtenerDatosSesion();
+
+    // 🔹 Payload venta
+    const ventaBody = {
+      idCliente: clienteSeleccionado.id,
+      idUsuario,
+      idAlmacen,
+      subtotal,
+      igv,
+      total,
+      detalles: carrito.map(item => ({
+        idProducto: item.producto.id,
+        cantidad: item.cantidad,
+        precioUnitario: item.producto.precio,
+        subtotal: item.subtotal
+      })),
+      pagos: detallesPago.map(pago => ({
+        id_metodo_pago: pago.id_metodo_pago,
+        monto: pago.monto,
+        referencia: pago.referencia || ''
+      }))
+    };
+
+    // 1️⃣ Crear venta (backend crea el Pedido)
     const ventaCreada = await ventaService.procesarVenta(ventaBody);
 
-    // 2️⃣ Crear el envío automáticamente
-const envioPayload: CrearEnvioDTO = {
-  idVenta: ventaCreada.id,
-  idCliente: ventaBody.idCliente,
-  estado: "PENDIENTE",
-  fechaRegistro: new Date().toISOString(),
-  productos: ventaBody.detalles.map(item => ({
-    idProducto: item.idProducto,
-    cantidad: item.cantidad
-  }))
-};
+  
 
-    const envioCreado = await enviosService.crear(envioPayload);
 
-    console.log("✅ Venta y pedido creados:", ventaCreada, envioCreado);
+    alert(`✅ Venta #${ventaCreada.id} procesada correctamente`);
 
-  } catch (error) {
-    console.error("Error al procesar venta y crear envío:", error);
+    // 🔹 Reset UI
+    setCarrito([]);
+    setClienteSeleccionado(null);
+    setBusquedaCliente('');
+    setMostrarModalPago(false);
+
+    await ventaService.fetchProductos().then(setProductos);
+    navigate('/ventas');
+
+  } catch (error: any) {
+    console.error("❌ Error al procesar venta:", error);
+    alert(error.message || "Ocurrió un error al procesar la venta");
   }
 };
 
-
-
-      // SECCIÓN ELIMINADA: Ya no llamamos a actualizarStock manualmente.
-      // El backend se encarga de la transacción completa.
-
-      alert(`✅ Venta #${resultado.id || resultado.numeroComprobante || '000'} procesada correctamente. Total: S/ ${totalVenta.toFixed(2)}`);
-
-      setCarrito([]);
-      setClienteSeleccionado(null);
-      setBusquedaCliente('');
-      setMostrarModalPago(false);
-      
-      // 2. Recargar productos para ver el nuevo stock
-      await ventaService.fetchProductos().then(setProductos);
-      
-      navigate('/ventas');
-
-    } catch (error: any) {
-      console.error('Error en procesarVenta:', error);
-      alert(error.message || "❌ Ocurrió un error al procesar la venta");
-    }
-  };
 
   const cancelarVenta = () => {
     if (carrito.length > 0 && confirm('¿Seguro que quieres cancelar la venta?')) {

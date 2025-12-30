@@ -33,14 +33,20 @@ public class Pedido {
 
     private BigDecimal total;
 
+    // 🔴 ESTE CAMPO ES CLAVE
+    @Column(name = "fecha_pedido", nullable = false)
+    private LocalDateTime fechaPedido;
+
     @CreationTimestamp
+    @Column(name = "fecha_creacion")
     private LocalDateTime fechaCreacion;
 
     @UpdateTimestamp
+    @Column(name = "fecha_actualizacion")
     private LocalDateTime fechaActualizacion;
 
-   @OneToOne(mappedBy = "pedido")
-@JsonManagedReference
+    @OneToOne(mappedBy = "pedido")
+    @JsonManagedReference
     private Envio envio;
 
     public enum EstadoPedido {
