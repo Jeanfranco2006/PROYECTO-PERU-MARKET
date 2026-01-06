@@ -93,7 +93,7 @@ public Venta procesarVenta(VentaDTO dto) {
     pedido.setFechaPedido(LocalDateTime.now()); // 🔥 CLAVE
 
     pedidoRepository.save(pedido);
-
+/* 
     // ✅ CREAR ENVÍO AUTOMÁTICO
 Envio envio = new Envio();
 envio.setPedido(pedido);
@@ -101,7 +101,7 @@ envio.setEstado(Envio.EstadoEnvio.PENDIENTE);
 envio.setFechaEnvio(LocalDate.now()); // o LocalDateTime si tu entidad lo usa
 
 envioRepository.save(envio);
-
+ */
 
     return ventaGuardada;
 }
