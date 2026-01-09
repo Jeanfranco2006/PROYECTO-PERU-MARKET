@@ -1,7 +1,6 @@
-import type { EstadoConductor } from "./conductorform";
+export type EstadoConductor = "DISPONIBLE" | "EN_RUTA" | "INACTIVO";
 
-
-export interface ConductorDTO {
+export interface PersonaForm {
   tipoDocumento: string;
   numeroDocumento: string;
   nombres: string;
@@ -11,7 +10,10 @@ export interface ConductorDTO {
   telefono: string;
   direccion: string;
   fechaNacimiento: string;
+}
 
+export interface ConductorForm {
+  persona: PersonaForm;
   licencia: string;
   categoriaLicencia: string;
   estado: EstadoConductor;
