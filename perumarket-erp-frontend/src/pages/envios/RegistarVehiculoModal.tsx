@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent,  } from "react";
+import { useState, type ChangeEvent, type FormEvent, } from "react";
 import { api } from "../../services/api";
 
 export default function VehiculoModal({ onSaved }: { onSaved?: () => void }) {
@@ -7,30 +7,51 @@ export default function VehiculoModal({ onSaved }: { onSaved?: () => void }) {
     placa: '',
     marca: '',
     modelo: '',
-    capacidad_kg: '',
+    capacidadKg: 0,
     estado: 'DISPONIBLE'
   });
 
 
-  
 
 
-  const handleVehiculoChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+
+
+  const handleVehiculoChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setVehiculoForm(prev => ({ ...prev, [name]: value }));
+
+    setVehiculoForm(prev => ({
+      ...prev,
+      [name]: name === "capacidadKg" ? Number(value) : value
+    }));
   };
 
-const handleSubmitVehiculo = async (e: FormEvent) => {
-  e.preventDefault();
-  try {
-    await api.post('/vehiculos', vehiculoForm);
-    setShowModalVehiculo(false);
-    setVehiculoForm({ placa: '', marca: '', modelo: '', capacidad_kg: '', estado: 'DISPONIBLE' });
-    onSaved?.(); // 🔹 Aquí sí
-  } catch (err) {
-    console.error(err);
-  }
-};
+
+  const handleSubmitVehiculo = async (e: FormEvent) => {
+    e.preventDefault();
+
+    try {
+      console.log("🚀 Payload enviado:", vehiculoForm);
+
+      await api.post('/vehiculos', vehiculoForm);
+
+      setShowModalVehiculo(false);
+      setVehiculoForm({
+        placa: '',
+        marca: '',
+        modelo: '',
+        capacidadKg: 0,
+        estado: 'DISPONIBLE'
+      });
+
+
+      onSaved?.();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
 
 
   return (
@@ -47,12 +68,23 @@ const handleSubmitVehiculo = async (e: FormEvent) => {
               <input type="text" placeholder="Placa" name="placa" value={vehiculoForm.placa} onChange={handleVehiculoChange} className="w-full p-3 border rounded-lg" required />
               <input type="text" placeholder="Marca" name="marca" value={vehiculoForm.marca} onChange={handleVehiculoChange} className="w-full p-3 border rounded-lg" />
               <input type="text" placeholder="Modelo" name="modelo" value={vehiculoForm.modelo} onChange={handleVehiculoChange} className="w-full p-3 border rounded-lg" />
-              <input type="number" step="0.01" placeholder="Capacidad (kg)" name="capacidad_kg" value={vehiculoForm.capacidad_kg} onChange={handleVehiculoChange} className="w-full p-3 border rounded-lg" />
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Capacidad (kg)"
+                name="capacidadKg"
+                value={vehiculoForm.capacidadKg}
+                onChange={handleVehiculoChange}
+                className="w-full p-3 border rounded-lg"
+                required
+              />
+
+
               <select name="estado" value={vehiculoForm.estado} onChange={handleVehiculoChange} className="w-full p-3 border rounded-lg">
                 <option value="DISPONIBLE">DISPONIBLE</option>
                 <option value="EN_RUTA">EN_RUTA</option>
                 <option value="MANTENIMIENTO">MANTENIMIENTO</option>
-                  <option value="INACTIVO">INACTIVO</option>
+                <option value="INACTIVO">INACTIVO</option>
               </select>
               <div className="flex justify-end gap-3 mt-4">
                 <button type="button" onClick={() => setShowModalVehiculo(false)} className="px-4 py-2 border rounded-lg">Cancelar</button>
