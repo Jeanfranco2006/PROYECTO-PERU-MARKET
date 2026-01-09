@@ -4,7 +4,9 @@ import PersonaForm from "../../components/modals/PersonaForm";
 import InputField from "../Clients/InputField";
 import SelectField from "../Clients/SelectField";
 import { ConductorService } from "../../services/envios/conductorService";
-import type { Conductor } from "../../types/Conductor/conductor";
+import type { ConductorDTO } from "../../types/Conductor/conductor";
+import type { ConductorForm } from "../../types/Conductor/conductorform";
+
 
 
 interface Props {
@@ -14,22 +16,23 @@ interface Props {
 export default function ConductorModal({ onSaved }: Props) {
   const [show, setShow] = useState(false);
 
-  const [state, setState] = useState<Conductor>({
-    persona: {
-      tipoDocumento: "DNI",
-      numeroDocumento: "",
-      nombres: "",
-      apellidoPaterno: "",
-      apellidoMaterno: "",
-      correo: "",
-      telefono: "",
-      direccion: "",
-      fechaNacimiento: ""
-    },
-    licencia: "",
-    categoriaLicencia: "", // ✅ agregada
-    estado: "DISPONIBLE"
-  });
+const [state, setState] = useState<ConductorForm>({
+  persona: {
+    tipoDocumento: "DNI",
+    numeroDocumento: "",
+    nombres: "",
+    apellidoPaterno: "",
+    apellidoMaterno: "",
+    correo: "",
+    telefono: "",
+    direccion: "",
+    fechaNacimiento: ""
+  },
+  licencia: "",
+  categoriaLicencia: "",
+  estado: "DISPONIBLE"
+});
+
 
 
   const setField = (path: string, value: any) => {
@@ -48,22 +51,27 @@ export default function ConductorModal({ onSaved }: Props) {
     });
   };
 
-  const submit = async (e: FormEvent) => {
-    e.preventDefault();
-    try {
-      await ConductorService.crearConductor({
-        persona: { ...state.persona },
-        licencia: state.licencia,
-        categoriaLicencia: state.categoriaLicencia,
-        estado: state.estado
-      });
-      setShow(false);
-      onSaved?.();
-    } catch (err) {
-      console.error("Error creando conductor:", err);
-      alert("No se pudo crear el conductor. Revisa la consola para más detalles.");
-    }
-  };
+const submit = async (e: FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const dto: ConductorDTO = {
+      ...state.persona,                // 👈 aplanamos persona
+      licencia: state.licencia,
+      categoriaLicencia: state.categoriaLicencia,
+      estado: state.estado
+    };
+
+    await ConductorService.crearConductor(dto);
+
+    setShow(false);
+    onSaved?.();
+  } catch (err) {
+    console.error("Error creando conductor:", err);
+    alert("No se pudo crear el conductor");
+  }
+};
+
 
   return (
     <>

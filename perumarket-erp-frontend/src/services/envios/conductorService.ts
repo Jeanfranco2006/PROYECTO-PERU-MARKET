@@ -1,9 +1,10 @@
-import type { Conductor } from "../../types/Conductor/conductor";
+
+import type { ConductorDTO } from "../../types/Conductor/conductor";
 import { api } from "../api";
 
 
 export const ConductorService = {
-  listarTodos: async (): Promise<Conductor[]> => {
+  listarTodos: async (): Promise<ConductorDTO[]> => {
     try {
       const response = await api.get("/conductores");
       return response.data;
@@ -13,7 +14,7 @@ export const ConductorService = {
     }
   },
 
-  listarDisponibles: async (): Promise<Conductor[]> => {
+  listarDisponibles: async (): Promise<ConductorDTO[]> => {
     try {
       const response = await api.get("/conductores/disponibles");
       return response.data;
@@ -23,7 +24,7 @@ export const ConductorService = {
     }
   },
 
-  crearConductor: async (conductor: Conductor): Promise<Conductor> => {
+  crearConductor: async (conductor: ConductorDTO): Promise<ConductorDTO> => {
     try {
       const response = await api.post("/conductores", conductor);
       return response.data;
