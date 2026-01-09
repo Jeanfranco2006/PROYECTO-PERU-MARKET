@@ -1,15 +1,10 @@
+import type { VehiculoDTO } from "../../types/vehiculos/vehiculos";
 import { api } from "../api";
 
-export interface CrearVehiculoDTO {
-  placa: string;
-  marca?: string;
-  modelo?: string;
-  capacidad_kg?: number | null;
-  estado?: string;
-}
+
 
 export const vehiculoService = {
-  crear: async (data: CrearVehiculoDTO) => {
+  crear: async (data: VehiculoDTO) => {
     const response = await api.post("/vehiculos", data);
     return response.data;
   },
