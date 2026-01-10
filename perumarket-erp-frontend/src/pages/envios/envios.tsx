@@ -444,7 +444,7 @@ export default function Envios() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {pedidosFiltrados.map((pedido) => (
-                    <tr key={pedido.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={`pedido-${pedido.id}`} className="hover:bg-gray-50 transition-colors">
                       <td className="p-4">
                         <div className="font-semibold text-gray-900">{pedido.codigo}</div>
                         <div className="text-xs text-gray-500">Venta #{pedido.idVenta}</div>
@@ -543,8 +543,8 @@ export default function Envios() {
                     </td>
                   </tr>
                 ) : (
-                  enviosFiltrados.map((envio) => (
-                    <tr key={envio.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
+                  enviosFiltrados.map((envio, index) => (
+                    <tr key={`envio-desktop-${index}`} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
                       <td className="p-4">
                         <div className="font-semibold text-gray-900">#{envio.pedido?.id}</div>
                       </td>
@@ -639,8 +639,8 @@ export default function Envios() {
                 <p className="text-gray-500">No hay envíos registrados</p>
               </div>
             ) : (
-              enviosFiltrados.map((envio) => (
-                <div key={envio.id} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
+              enviosFiltrados.map((envio, index) => (
+                <div key={`envio-mobile-${index}`} className="border border-gray-200 rounded-xl p-4 bg-white shadow-sm">
                   <div className="space-y-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -762,7 +762,7 @@ export default function Envios() {
                     >
                       <option value="">Seleccionar vehículo...</option>
                       {vehiculos.map(v => (
-                        <option key={v.id} value={v.id}>
+                        <option key={`vehiculo-${v.id}`} value={v.id}>
                           {v.placa} - {v.marca} {v.modelo} ({v.estado || 'DISPONIBLE'})
                         </option>
                       ))}
@@ -785,7 +785,7 @@ export default function Envios() {
                     >
                       <option value="">Seleccionar conductor...</option>
                       {conductores.map(c => (
-                        <option key={c.id} value={c.id}>
+                        <option key={`conductor-${c.id}`} value={c.id}>
                           {c.persona?.nombres} {c.persona?.apellidoPaterno} - {c.licencia}
                         </option>
                       ))}
@@ -802,7 +802,7 @@ export default function Envios() {
                     >
                       <option value="">Seleccionar ruta...</option>
                       {rutas.map(r => (
-                        <option key={r.id} value={r.id}>
+                        <option key={`ruta-${r.id}`} value={r.id}>
                           {r.nombre} - S/ {r.costo}
                         </option>
                       ))}
@@ -1054,7 +1054,7 @@ export default function Envios() {
                     >
                       <option value="">Seleccionar vehículo...</option>
                       {vehiculos.map(v => (
-                        <option key={v.id} value={v.id}>
+                        <option key={`vehiculo-edit-${v.id}`} value={v.id}>
                           {v.placa} - {v.marca} {v.modelo}
                         </option>
                       ))}
@@ -1071,7 +1071,7 @@ export default function Envios() {
                     >
                       <option value="">Seleccionar conductor...</option>
                       {conductores.map(c => (
-                        <option key={c.id} value={c.id}>
+                        <option key={`conductor-edit-${c.id}`} value={c.id}>
                           {c.persona?.nombres} {c.persona?.apellidoPaterno}
                         </option>
                       ))}
@@ -1088,7 +1088,7 @@ export default function Envios() {
                     >
                       <option value="">Seleccionar ruta...</option>
                       {rutas.map(r => (
-                        <option key={r.id} value={r.id}>
+                        <option key={`ruta-edit-${r.id}`} value={r.id}>
                           {r.nombre} - S/ {r.costo}
                         </option>
                       ))}
