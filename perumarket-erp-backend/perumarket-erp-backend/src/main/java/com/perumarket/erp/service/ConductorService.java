@@ -30,21 +30,34 @@ public class ConductorService {
 
     @Transactional
     public Conductor save(Conductor conductor) {
-        Persona persona = conductor.getPersona();
+        Persona personaInput = conductor.getPersona();
 
-        // Buscar si la persona ya existe
-        Optional<Persona> personaExistente = personaRepository
-                .findByNumeroDocumento(persona.getNumeroDocumento());
+        // Validar que venga información de la persona
+        if (personaInput != null) {
+            // 1. Buscar si la persona ya existe por DNI
+            Optional<Persona> personaExistente = personaRepository
+                    .findByNumeroDocumento(personaInput.getNumeroDocumento());
 
-        if (personaExistente.isPresent()) {
-            conductor.setPersona(personaExistente.get());
-        } else {
-            // Guardar la persona nueva
-            persona = personaRepository.save(persona);
-            conductor.setPersona(persona);
+            if (personaExistente.isPresent()) {
+                // 2. Si existe, recuperamos la entidad y ACTUALIZAMOS sus datos
+                Persona personaDb = personaExistente.get();
+                personaDb.setNombres(personaInput.getNombres());
+                personaDb.setApellidoPaterno(personaInput.getApellidoPaterno());
+                personaDb.setApellidoMaterno(personaInput.getApellidoMaterno());
+                personaDb.setCorreo(personaInput.getCorreo());
+                personaDb.setTelefono(personaInput.getTelefono());
+                personaDb.setDireccion(personaInput.getDireccion());
+                personaDb.setFechaNacimiento(personaInput.getFechaNacimiento());
+                
+                // Guardamos los cambios de la persona y la asignamos
+                conductor.setPersona(personaRepository.save(personaDb));
+            } else {
+                // 3. Si no existe, guardamos la persona nueva
+                conductor.setPersona(personaRepository.save(personaInput));
+            }
         }
 
-        // Guardar el conductor
+        // 4. Finalmente guardamos el conductor con la relación establecida
         return conductorRepository.save(conductor);
     }
 }
