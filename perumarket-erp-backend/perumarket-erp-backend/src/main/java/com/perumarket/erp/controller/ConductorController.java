@@ -20,11 +20,32 @@ public class ConductorController {
 
     private final ConductorService conductorService;
 
-    @PostMapping
-    public ResponseEntity<Conductor> crearConductor(@RequestBody ConductorDTO dto) {
-        Conductor guardado = conductorService.crearDesdeDTO(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
-    }
+ @PostMapping
+public ResponseEntity<Conductor> crearConductor(@RequestBody ConductorDTO dto) {
+    Conductor conductor = new Conductor();
+
+    // Crear objeto Persona
+    Persona persona = new Persona();
+    persona.setTipoDocumento(dto.getTipoDocumento());
+    persona.setNumeroDocumento(dto.getNumeroDocumento());
+    persona.setNombres(dto.getNombres());
+    persona.setApellidoPaterno(dto.getApellidoPaterno());
+    persona.setApellidoMaterno(dto.getApellidoMaterno());
+    persona.setCorreo(dto.getCorreo());
+    persona.setTelefono(dto.getTelefono());
+    persona.setDireccion(dto.getDireccion());
+    persona.setFechaNacimiento(dto.getFechaNacimiento());
+
+    // Asignar Persona y datos del conductor
+    conductor.setPersona(persona);
+    conductor.setLicencia(dto.getLicencia());
+    conductor.setCategoriaLicencia(dto.getCategoriaLicencia());
+    conductor.setEstado(dto.getEstado());
+
+    Conductor guardado = conductorService.save(conductor);
+    return ResponseEntity.status(HttpStatus.CREATED).body(guardado);
+}
+
 
     @GetMapping
     public List<Conductor> listarTodos() {

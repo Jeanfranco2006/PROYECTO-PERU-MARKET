@@ -12,37 +12,6 @@ interface Props {
   onSaved?: () => void;
 }
 
-// ✅ Categorías de licencia (Perú)
-const CATEGORIAS_LICENCIA = [
-  "A-I",
-  "A-IIA",
-  "A-IIB",
-  "A-IIIA",
-  "A-IIIB",
-  "A-IIIC"
-];
-
-// ✅ Tipos de documento
-const TIPOS_DOCUMENTO = ["DNI", "Pasaporte", "CE"];
-
-// ✅ Estado inicial
-const INITIAL_FORM: ConductorForm = {
-  persona: {
-    tipoDocumento: "DNI",
-    numeroDocumento: "",
-    nombres: "",
-    apellidoPaterno: "",
-    apellidoMaterno: "",
-    correo: "",
-    telefono: "",
-    direccion: "",
-    fechaNacimiento: ""
-  },
-  licencia: "",
-  categoriaLicencia: "",
-  estado: "DISPONIBLE"
-};
-
 export default function ConductorModal({ onSaved }: Props) {
   const [show, setShow] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -104,56 +73,13 @@ export default function ConductorModal({ onSaved }: Props) {
         ref[k] = { ...ref[k] };
         ref = ref[k];
       });
-    }
-    
-    // Actualizar estado anidado
-    if (name.startsWith('persona.')) {
-      const field = name.split('.')[1];
-      setForm(prev => ({
-        ...prev,
-        persona: { ...prev.persona, [field]: value }
-      }));
-    } else {
-      setForm(prev => ({ ...prev, [name]: value }));
-    }
-  };
-
-  const validarDni = async (): Promise<boolean> => {
-    const dni = form.persona.numeroDocumento;
-    
-    if (!dni) {
-      setErrors(prev => ({ ...prev, 'persona.numeroDocumento': "El DNI es requerido" }));
-      return false;
-    }
 
       ref[keys[keys.length - 1]] = finalValue;
       return copy;
     });
   };
 
-  const validateForm = async (): Promise<boolean> => {
-    const newErrors: Record<string, string> = {};
-    
-    // Validar campos de persona
-    if (!form.persona.nombres.trim()) newErrors['persona.nombres'] = "Los nombres son requeridos";
-    if (!form.persona.apellidoPaterno.trim()) newErrors['persona.apellidoPaterno'] = "El apellido paterno es requerido";
-    
-    // Validar campos de conductor
-    if (!form.licencia.trim()) newErrors.licencia = "La licencia es requerida";
-    if (!form.categoriaLicencia) newErrors.categoriaLicencia = "La categoría es requerida";
-    
-    setErrors(newErrors);
-    
-    // Si hay errores básicos, no validamos DNI
-    if (Object.keys(newErrors).length > 0) {
-      return false;
-    }
-    
-    // Validar DNI
-    return await validarDni();
-  };
-
-  const handleSubmit = async (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     
     if (!state.persona.numeroDocumento || !state.licencia) {
@@ -173,7 +99,6 @@ export default function ConductorModal({ onSaved }: Props) {
 
       await ConductorService.crearConductor(datosParaEnviar as any);
       setShow(false);
-      setForm(INITIAL_FORM);
       onSaved?.();
       
       // Limpiar formulario
