@@ -1,4 +1,4 @@
-import { useState, type ChangeEvent, type FormEvent } from "react";
+import { useState, type ChangeEvent, type FormEvent, useEffect } from "react";
 import { RutaService } from "../../services/envios/rutaService";
 
 interface Props {
@@ -18,9 +18,53 @@ export default function RutaModal({ onSaved }: Props) {
     costo_base: ""
   });
 
+  // Resetear errores al abrir/cerrar
+  useEffect(() => {
+    if (show) {
+      setErrors({});
+    }
+  }, [show]);
+
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
+    // Validación en tiempo real
+    if (name === "distancia_km" || name === "tiempo_estimado_horas" || name === "costo_base") {
+      if (value && parseFloat(value) < 0) {
+        setErrors(prev => ({ ...prev, [name]: "El valor no puede ser negativo" }));
+      } else {
+        setErrors(prev => {
+          const newErrors = { ...prev };
+          delete newErrors[name];
+          return newErrors;
+        });
+      }
+    }
+    
     setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validateForm = (): boolean => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!form.nombre.trim()) newErrors.nombre = "El nombre es requerido";
+    if (!form.origen.trim()) newErrors.origen = "El origen es requerido";
+    if (!form.destino.trim()) newErrors.destino = "El destino es requerido";
+    
+    if (form.distancia_km && parseFloat(form.distancia_km) <= 0) {
+      newErrors.distancia_km = "La distancia debe ser mayor a 0";
+    }
+    
+    if (form.tiempo_estimado_horas && parseFloat(form.tiempo_estimado_horas) <= 0) {
+      newErrors.tiempo_estimado_horas = "El tiempo debe ser mayor a 0";
+    }
+    
+    if (form.costo_base && parseFloat(form.costo_base) <= 0) {
+      newErrors.costo_base = "El costo debe ser mayor a 0";
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -37,9 +81,16 @@ export default function RutaModal({ onSaved }: Props) {
       });
 
       setShow(false);
-      setForm({ nombre: "", origen: "", destino: "", distancia_km: "", tiempo_estimado_horas: "", costo_base: "" });
+      setForm({ 
+        nombre: "", 
+        origen: "", 
+        destino: "", 
+        distancia_km: "", 
+        tiempo_estimado_horas: "", 
+        costo_base: "" 
+      });
       onSaved?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error creando ruta:", error);
       alert("Ocurrió un error al crear la ruta."); // Podrías cambiar esto por un toast notification
     } finally {
@@ -184,6 +235,7 @@ export default function RutaModal({ onSaved }: Props) {
           </div>
         </div>
       )}
+
     </>
   );
 }

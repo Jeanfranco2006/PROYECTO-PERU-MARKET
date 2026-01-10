@@ -1,7 +1,13 @@
-export interface CrearVehiculoDTO {
+export type EstadoVehiculo =
+  | "DISPONIBLE"
+  | "EN_RUTA"
+  | "MANTENIMIENTO"
+  | "INACTIVO";
+
+export interface VehiculoDTO {
   placa: string;
-  marca?: string;
-  modelo?: string;
-  capacidad_kg?: number | null;
-  estado?: string;
+  marca: string;
+  modelo: string;
+  capacidadKg: number;
+  estado: EstadoVehiculo;
 }

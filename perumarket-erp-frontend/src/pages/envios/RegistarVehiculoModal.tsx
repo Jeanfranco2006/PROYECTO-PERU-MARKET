@@ -16,7 +16,84 @@ export default function VehiculoModal({ onSaved }: { onSaved?: () => void }) {
 
   const handleVehiculoChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setVehiculoForm(prev => ({ ...prev, [name]: value }));
+    
+    // Limpiar error del campo al editar
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+    
+    // Validación en tiempo real para campos numéricos
+    if (name === "capacidadKg") {
+      if (value && parseFloat(value) <= 0) {
+        setErrors(prev => ({ ...prev, [name]: "La capacidad debe ser mayor a 0" }));
+      }
+    }
+    
+    setForm(prev => ({ ...prev, [name]: value }));
+  };
+
+  const validarPlaca = async (): Promise<boolean> => {
+    const placa = form.placa.trim().toUpperCase();
+    
+    if (!placa) {
+      setErrors(prev => ({ ...prev, placa: "La placa es requerida" }));
+      return false;
+    }
+
+    // Validar formato básico de placa
+    const placaRegex = /^[A-Z0-9]{6,10}$/;
+    if (!placaRegex.test(placa)) {
+      setErrors(prev => ({ ...prev, placa: "Formato de placa inválido" }));
+      return false;
+    }
+
+    setValidatingPlaca(true);
+
+    try {
+      // Verificar si la placa ya existe
+      const existe = vehiculosExistentes.some(
+        vehiculo => vehiculo.placa.toUpperCase() === placa
+      );
+
+      if (existe) {
+        setErrors(prev => ({ ...prev, placa: "Esta placa ya está registrada" }));
+        return false;
+      }
+      return true;
+    } catch (error) {
+      setErrors(prev => ({ ...prev, placa: "Error validando placa" }));
+      return false;
+    } finally {
+      setValidatingPlaca(false);
+    }
+  };
+
+  const validateForm = async (): Promise<boolean> => {
+    const newErrors: Record<string, string> = {};
+    
+    if (!form.placa.trim()) {
+      newErrors.placa = "La placa es requerida";
+    }
+    
+    if (!form.capacidadKg) {
+      newErrors.capacidadKg = "La capacidad es requerida";
+    } else if (parseFloat(form.capacidadKg) <= 0) {
+      newErrors.capacidadKg = "La capacidad debe ser mayor a 0";
+    }
+    
+    setErrors(newErrors);
+    
+    // Si hay errores básicos, no validamos placa
+    if (Object.keys(newErrors).length > 0) {
+      return false;
+    }
+    
+    // Validar placa solo si no hay errores básicos
+    return await validarPlaca();
   };
 
   const handleSubmitVehiculo = async (e: FormEvent) => {

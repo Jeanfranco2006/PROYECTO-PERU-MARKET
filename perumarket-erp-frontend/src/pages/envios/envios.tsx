@@ -456,7 +456,7 @@ export default function Envios() {
                 </thead>
                 <tbody className="divide-y divide-gray-200">
                   {pedidosFiltrados.map((pedido) => (
-                    <tr key={pedido.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={`pedido-${pedido.id}`} className="hover:bg-gray-50 transition-colors">
                       <td className="p-4">
                         <div className="font-semibold text-gray-900">{pedido.codigo}</div>
                         <div className="text-xs text-gray-500">Venta #{pedido.idVenta}</div>
