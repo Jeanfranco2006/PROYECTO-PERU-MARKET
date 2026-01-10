@@ -72,12 +72,17 @@ public class EnvioController {
                                 envio.getPedido().getCliente().getPersona().getApellidoMaterno();
             }
 
-            // Nombre completo del conductor
+            // Nombre completo del conductor (CORREGIDO)
             String nombreConductor = null;
             if (envio.getConductor() != null && envio.getConductor().getPersona() != null) {
-                nombreConductor = envio.getConductor().getPersona().getNombres() + " " +
-                                  envio.getConductor().getPersona().getApellidoPaterno() + " " +
-                                  envio.getConductor().getPersona().getApellidoMaterno();
+                var p = envio.getConductor().getPersona();
+                // Validamos cada campo para evitar "null"
+                String n = p.getNombres() != null ? p.getNombres() : "";
+                String ap = p.getApellidoPaterno() != null ? p.getApellidoPaterno() : "";
+                String am = p.getApellidoMaterno() != null ? p.getApellidoMaterno() : "";
+                
+                // Unimos y quitamos espacios sobrantes
+                nombreConductor = (n + " " + ap + " " + am).trim();
             }
 
             // Placa del vehículo

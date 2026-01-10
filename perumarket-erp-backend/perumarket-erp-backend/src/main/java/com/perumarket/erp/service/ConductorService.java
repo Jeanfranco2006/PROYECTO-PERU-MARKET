@@ -55,29 +55,36 @@ public Conductor crearDesdeDTO(ConductorDTO dto) {
         throw new RuntimeException("La licencia es obligatoria");
     }
 
-    if (dto.getCategoriaLicencia() == null || dto.getCategoriaLicencia().isBlank()) {
-        throw new RuntimeException("La categoría de licencia es obligatoria");
-    }
+    @Transactional
+    public Conductor save(Conductor conductor) {
+        Persona personaInput = conductor.getPersona();
 
-    // 3️⃣ Crear conductor
-    Conductor conductor = new Conductor();
-    conductor.setPersona(persona);
-    conductor.setLicencia(dto.getLicencia());
-    conductor.setCategoriaLicencia(dto.getCategoriaLicencia());
-    conductor.setEstado(
-            dto.getEstado() != null
-                    ? dto.getEstado()
-                    : Conductor.EstadoConductor.DISPONIBLE
-    );
+        // Validar que venga información de la persona
+        if (personaInput != null) {
+            // 1. Buscar si la persona ya existe por DNI
+            Optional<Persona> personaExistente = personaRepository
+                    .findByNumeroDocumento(personaInput.getNumeroDocumento());
 
-    return conductorRepository.save(conductor);
-}
+            if (personaExistente.isPresent()) {
+                // 2. Si existe, recuperamos la entidad y ACTUALIZAMOS sus datos
+                Persona personaDb = personaExistente.get();
+                personaDb.setNombres(personaInput.getNombres());
+                personaDb.setApellidoPaterno(personaInput.getApellidoPaterno());
+                personaDb.setApellidoMaterno(personaInput.getApellidoMaterno());
+                personaDb.setCorreo(personaInput.getCorreo());
+                personaDb.setTelefono(personaInput.getTelefono());
+                personaDb.setDireccion(personaInput.getDireccion());
+                personaDb.setFechaNacimiento(personaInput.getFechaNacimiento());
+                
+                // Guardamos los cambios de la persona y la asignamos
+                conductor.setPersona(personaRepository.save(personaDb));
+            } else {
+                // 3. Si no existe, guardamos la persona nueva
+                conductor.setPersona(personaRepository.save(personaInput));
+            }
+        }
 
-    public List<Conductor> findAll() {
-        return conductorRepository.findAll();
-    }
-
-    public List<Conductor> findByEstado(Conductor.EstadoConductor estado) {
-        return conductorRepository.findByEstado(estado);
+        // 4. Finalmente guardamos el conductor con la relación establecida
+        return conductorRepository.save(conductor);
     }
 }

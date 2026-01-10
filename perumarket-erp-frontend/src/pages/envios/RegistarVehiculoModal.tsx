@@ -1,67 +1,20 @@
-import { useState, type FormEvent, useEffect } from "react";
-import { 
-  FaTruck, 
-  FaTimes, 
-  FaSave, 
-  FaPlus,
-  FaSpinner,
-  FaClipboard,
-  FaCar,
-  FaWeight,
-  FaRoad,
-  FaCheck,
-  FaExclamationTriangle
-} from "react-icons/fa";
+import { useState, type ChangeEvent, type FormEvent } from "react";
 import { api } from "../../services/api";
+import { FiTruck, FiBox, FiActivity, FiX, FiSave, FiTag } from "react-icons/fi";
 
-interface Props {
-  onSaved?: () => void;
-}
+export default function VehiculoModal({ onSaved }: { onSaved?: () => void }) {
+  const [showModalVehiculo, setShowModalVehiculo] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-interface VehiculoExistente {
-  id: number;
-  placa: string;
-  estado: string;
-}
-
-export default function VehiculoModal({ onSaved }: Props) {
-  const [show, setShow] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validatingPlaca, setValidatingPlaca] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [vehiculosExistentes, setVehiculosExistentes] = useState<VehiculoExistente[]>([]);
-
-  const [form, setForm] = useState({
-    placa: "",
-    marca: "",
-    modelo: "",
-    capacidadKg: "",
-    estado: "DISPONIBLE",
+  const [vehiculoForm, setVehiculoForm] = useState({
+    placa: '',
+    marca: '',
+    modelo: '',
+    capacidadKg: '',
+    estado: 'DISPONIBLE'
   });
 
-  // Resetear errores al abrir/cerrar
-  useEffect(() => {
-    if (show) {
-      setErrors({});
-      cargarVehiculosExistentes();
-    }
-  }, [show]);
-
-  const cargarVehiculosExistentes = async () => {
-    try {
-      const response = await api.get("/vehiculos");
-      const vehiculos = response.data.map((v: any) => ({
-        id: v.id,
-        placa: v.placa,
-        estado: v.estado
-      }));
-      setVehiculosExistentes(vehiculos);
-    } catch (error) {
-      console.error("Error cargando vehículos:", error);
-    }
-  };
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleVehiculoChange = (e: ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     
     // Limpiar error del campo al editar
@@ -143,248 +96,198 @@ export default function VehiculoModal({ onSaved }: Props) {
     return await validarPlaca();
   };
 
-  const handleSubmit = async (e: FormEvent) => {
+  const handleSubmitVehiculo = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (!(await validateForm())) {
-      return;
-    }
-
-    setIsSubmitting(true);
-    
+    setIsLoading(true);
     try {
-      await api.post("/vehiculos", {
-        ...form,
-        placa: form.placa.trim().toUpperCase(),
-        capacidadKg: Number(form.capacidadKg),
-      });
-      
-      setShow(false);
-      setForm({
-        placa: "",
-        marca: "",
-        modelo: "",
-        capacidadKg: "",
-        estado: "DISPONIBLE",
-      });
-      onSaved?.();
-    } catch (error: any) {
-      console.error("Error creando vehículo:", error);
-      
-      if (error.response?.status === 409) {
-        setErrors(prev => ({ ...prev, placa: "Esta placa ya está registrada" }));
-      } else {
-        alert("No se pudo crear el vehículo. Verifique los datos.");
-      }
+      await api.post('/vehiculos', vehiculoForm);
+      setVehiculoForm({ placa: '', marca: '', modelo: '', capacidadKg: '', estado: 'DISPONIBLE' });
+      setShowModalVehiculo(false);
+      onSaved?.(); 
+    } catch (err) {
+      console.error(err);
+      alert("Error al registrar el vehículo");
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
     <>
-      <button
-        onClick={() => setShow(true)}
-        className="flex items-center gap-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 shadow-md hover:shadow-lg"
+      {/* BOTÓN PRINCIPAL */}
+      <button 
+        onClick={() => setShowModalVehiculo(true)} 
+        className="group flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold px-5 py-2.5 rounded-xl shadow-lg hover:shadow-blue-500/30 hover:scale-[1.02] transition-all duration-300 active:scale-95"
       >
-        <FaPlus className="text-sm" />
-        <span className="font-medium">Nuevo Vehículo</span>
+        <FiTruck className="text-xl group-hover:rotate-12 transition-transform" />
+        <span>Nuevo Vehículo</span>
       </button>
 
-      {show && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
-          <div 
-            className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fade-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <FaTruck className="text-blue-600 text-xl" />
+      {/* MODAL OVERLAY */}
+      {showModalVehiculo && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+          
+          {/* CARD PRINCIPAL */}
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden transform transition-all animate-fade-in-up">
+            
+            {/* HEADER CON GRADIENTE */}
+            <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-6 overflow-hidden">
+              
+              {/* ✅ CORRECCIÓN 1: z-10 para asegurar que el botón esté encima de la decoración */}
+              <div className="relative z-10 flex justify-between items-start text-white">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                    <FiTruck size={24} />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold tracking-tight">Registrar Vehículo</h2>
+                    <p className="text-blue-100 text-xs mt-0.5">Ingresa los detalles de la unidad</p>
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Registrar Nuevo Vehículo</h2>
-                  <p className="text-sm text-gray-500">Complete los datos del vehículo de transporte</p>
-                </div>
+                
+                {/* Botón Cerrar */}
+                <button 
+                  onClick={() => setShowModalVehiculo(false)} 
+                  className="p-1 text-blue-100 hover:text-white hover:bg-white/20 rounded-full transition-colors cursor-pointer"
+                >
+                  <FiX size={24} />
+                </button>
               </div>
-              <button
-                onClick={() => setShow(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <FaTimes className="text-gray-500" />
-              </button>
+              
+              {/* ✅ CORRECCIÓN 2: pointer-events-none para que los clics traspasen la decoración */}
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Placa */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaClipboard className="text-blue-600" />
+            {/* FORMULARIO */}
+            <form onSubmit={handleSubmitVehiculo} className="p-6 md:p-8 space-y-6">
+              
+              {/* Input: Placa */}
+              <div>
+                <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">
                   Placa del Vehículo
                 </label>
-                <div className="relative">
-                  <input
-                    name="placa"
-                    placeholder="Ej: ABC-123"
-                    value={form.placa}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-10 py-2.5 border ${errors.placa ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all uppercase`}
-                    required
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <FiTag className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                  </div>
+                  <input 
+                    type="text" 
+                    name="placa" 
+                    value={vehiculoForm.placa} 
+                    onChange={handleVehiculoChange} 
+                    placeholder="Ej. ABC-123" 
+                    className="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-medium text-gray-700 placeholder-gray-400"
+                    required 
                   />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaClipboard />
-                  </div>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                    {validatingPlaca ? (
-                      <FaSpinner className="animate-spin text-blue-500" />
-                    ) : errors.placa ? (
-                      <FaExclamationTriangle className="text-red-500" />
-                    ) : form.placa ? (
-                      <FaCheck className="text-green-500" />
-                    ) : null}
-                  </div>
                 </div>
-                {errors.placa && (
-                  <p className="text-sm text-red-500 flex items-center gap-1">
-                    ⚠️ {errors.placa}
-                  </p>
-                )}
               </div>
 
-              {/* Marca y Modelo */}
-              <div className="grid grid-cols-2 gap-4">
-                {/* Marca */}
-                <div className="space-y-1">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaCar className="text-gray-600" />
-                    Marca
-                  </label>
-                  <div className="relative">
-                    <input
-                      name="marca"
-                      placeholder="Ej: Toyota"
-                      value={form.marca}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
+              {/* Grid: Marca y Modelo */}
+              <div className="grid grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">Marca</label>
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      name="marca" 
+                      value={vehiculoForm.marca} 
+                      onChange={handleVehiculoChange} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                      placeholder="Ej. Toyota"
                     />
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                      <FaCar />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">Modelo</label>
+                  <div className="relative group">
+                    <input 
+                      type="text" 
+                      name="modelo" 
+                      value={vehiculoForm.modelo} 
+                      onChange={handleVehiculoChange} 
+                      className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all text-sm"
+                      placeholder="Ej. Hilux"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Grid: Capacidad y Estado */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">Capacidad</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiBox className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <input 
+                      type="number" 
+                      step="0.01" 
+                      name="capacidadKg" 
+                      value={vehiculoForm.capacidadKg} 
+                      onChange={handleVehiculoChange} 
+                      className="w-full pl-10 pr-12 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all font-medium"
+                      placeholder="0.00"
+                    />
+                    <span className="absolute inset-y-0 right-4 flex items-center text-gray-400 text-xs font-bold">KG</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 uppercase tracking-wide mb-2 ml-1">Estado</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <FiActivity className="text-gray-400 group-focus-within:text-blue-500 transition-colors" />
+                    </div>
+                    <select 
+                      name="estado" 
+                      value={vehiculoForm.estado} 
+                      onChange={handleVehiculoChange} 
+                      className="w-full pl-10 pr-8 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition-all appearance-none cursor-pointer text-sm font-medium text-gray-700"
+                    >
+                      <option value="DISPONIBLE">DISPONIBLE</option>
+                      <option value="EN_RUTA">EN RUTA</option>
+                      <option value="MANTENIMIENTO">MANTENIMIENTO</option>
+                      <option value="INACTIVO">INACTIVO</option>
+                    </select>
+                    <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none text-gray-500">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
                     </div>
                   </div>
                 </div>
-
-                {/* Modelo */}
-                <div className="space-y-1">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaRoad className="text-gray-600" />
-                    Modelo
-                  </label>
-                  <div className="relative">
-                    <input
-                      name="modelo"
-                      placeholder="Ej: Hilux"
-                      value={form.modelo}
-                      onChange={handleChange}
-                      className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all"
-                    />
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                      <FaRoad />
-                    </div>
-                  </div>
-                </div>
               </div>
 
-              {/* Capacidad */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaWeight className="text-orange-600" />
-                  Capacidad
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    name="capacidadKg"
-                    placeholder="Ej: 3500"
-                    value={form.capacidadKg}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-12 py-2.5 border ${errors.capacidadKg ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all`}
-                    required
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaWeight />
-                  </div>
-                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                    kg
-                  </span>
-                </div>
-                {errors.capacidadKg && (
-                  <p className="text-sm text-red-500 flex items-center gap-1">
-                    ⚠️ {errors.capacidadKg}
-                  </p>
-                )}
-              </div>
-
-              {/* Estado */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaTruck className="text-purple-600" />
-                  Estado
-                </label>
-                <div className="relative">
-                  <select
-                    name="estado"
-                    value={form.estado}
-                    onChange={handleChange}
-                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 transition-all appearance-none"
-                  >
-                    <option value="DISPONIBLE">Disponible</option>
-                    <option value="EN_RUTA">En Ruta</option>
-                    <option value="MANTENIMIENTO">Mantenimiento</option>
-                    <option value="INACTIVO">Inactivo</option>
-                  </select>
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaTruck />
-                  </div>
-                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 pointer-events-none">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </div>
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setShow(false)}
-                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
-                  disabled={isSubmitting || validatingPlaca}
+              {/* Botones de Acción */}
+              <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t border-gray-100">
+                <button 
+                  type="button" 
+                  onClick={() => setShowModalVehiculo(false)} 
+                  className="px-6 py-3 text-sm font-semibold text-gray-600 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 hover:text-gray-800 transition-colors focus:ring-2 focus:ring-gray-200"
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || validatingPlaca}
-                  className="px-5 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                <button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="flex items-center justify-center gap-2 px-8 py-3 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 focus:ring-4 focus:ring-blue-200 transition-all shadow-md hover:shadow-lg disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? (
+                  {isLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Guardando...
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      <span>Guardando...</span>
                     </>
                   ) : (
                     <>
-                      <FaSave />
-                      Guardar Vehículo
+                      <FiSave className="text-lg" />
+                      <span>Guardar Vehículo</span>
                     </>
                   )}
                 </button>
               </div>
+
             </form>
           </div>
         </div>

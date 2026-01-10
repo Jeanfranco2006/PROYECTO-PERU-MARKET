@@ -58,7 +58,7 @@ public Envio crearEnvio(CrearEnvioDTO dto) {
     Envio envio = new Envio();
     envio.setPedido(pedido);
     envio.setEstado(Envio.EstadoEnvio.PENDIENTE);
-    envio.setFechaEnvio(null);
+    envio.setFechaEnvio(dto.getFechaEnvio() != null ? LocalDate.parse(dto.getFechaEnvio()) : null);
     envio.setDireccionEnvio(dto.getDireccionEnvio());
     envio.setFechaEntrega(dto.getFechaEntrega() != null ? LocalDate.parse(dto.getFechaEntrega()) : null);
     envio.setCostoTransporte(dto.getCostoTransporte());
@@ -129,39 +129,54 @@ public Envio crearEnvio(CrearEnvioDTO dto) {
         return envioRepository.save(envio);
     }
 @Transactional
-public Envio actualizarEnvio(Long id, AsignarEnvioDTO dto) {
+    public Envio actualizarEnvio(Long id, AsignarEnvioDTO dto) {
 
-    Envio envio = envioRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Envío no encontrado"));
+        Envio envio = envioRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Envío no encontrado"));
 
-    if (dto.getIdVehiculo() != null) {
-        envio.setVehiculo(
-            vehiculoRepository.findById(dto.getIdVehiculo())
-                    .orElseThrow(() -> new RuntimeException("Vehículo no encontrado"))
-        );
+        // 1. Actualizar Relaciones (Solo si vienen datos nuevos)
+        if (dto.getIdVehiculo() != null) {
+            envio.setVehiculo(vehiculoRepository.findById(dto.getIdVehiculo())
+                    .orElseThrow(() -> new RuntimeException("Vehículo no encontrado")));
+        }
+
+        if (dto.getIdConductor() != null) {
+            envio.setConductor(conductorRepository.findById(dto.getIdConductor())
+                    .orElseThrow(() -> new RuntimeException("Conductor no encontrado")));
+        }
+
+        if (dto.getIdRuta() != null) {
+            envio.setRuta(rutaRepository.findById(dto.getIdRuta())
+                    .orElseThrow(() -> new RuntimeException("Ruta no encontrada")));
+        }
+
+        // 2. Actualizar Datos (Validando nulls para no borrar datos existentes)
+        if (dto.getDireccionEnvio() != null) {
+            envio.setDireccionEnvio(dto.getDireccionEnvio());
+        }
+
+        if (dto.getFechaEnvio() != null) {
+            envio.setFechaEnvio(LocalDate.parse(dto.getFechaEnvio()));
+        }
+
+        if (dto.getFechaEntrega() != null && !dto.getFechaEntrega().isEmpty()) {
+            envio.setFechaEntrega(LocalDate.parse(dto.getFechaEntrega()));
+        }
+
+        // ✅ ESTO FALTABA: Actualizar el Costo
+        if (dto.getCostoTransporte() != null) {
+            envio.setCostoTransporte(dto.getCostoTransporte());
+        }
+
+        if (dto.getEstado() != null) {
+            envio.setEstado(Envio.EstadoEnvio.valueOf(dto.getEstado()));
+        }
+
+        if (dto.getObservaciones() != null) {
+            envio.setObservaciones(dto.getObservaciones());
+        }
+
+        return envioRepository.save(envio);
     }
-
-    if (dto.getIdConductor() != null) {
-        envio.setConductor(
-            conductorRepository.findById(dto.getIdConductor())
-                    .orElseThrow(() -> new RuntimeException("Conductor no encontrado"))
-        );
-    }
-
-    if (dto.getIdRuta() != null) {
-        envio.setRuta(
-            rutaRepository.findById(dto.getIdRuta())
-                    .orElseThrow(() -> new RuntimeException("Ruta no encontrada"))
-        );
-    }
-
-    envio.setDireccionEnvio(dto.getDireccionEnvio());
-    envio.setFechaEnvio(dto.getFechaEnvio() != null ? LocalDate.parse(dto.getFechaEnvio()) : null);
-    envio.setFechaEntrega(dto.getFechaEntrega() != null ? LocalDate.parse(dto.getFechaEntrega()) : null);
-    envio.setEstado(Envio.EstadoEnvio.valueOf(dto.getEstado()));
-    envio.setObservaciones(dto.getObservaciones());
-
-    return envioRepository.save(envio);
-}
 
 }

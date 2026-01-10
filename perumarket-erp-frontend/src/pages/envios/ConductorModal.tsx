@@ -1,23 +1,12 @@
-import { useState, type FormEvent, useEffect } from "react";
-import { 
-  FaIdBadge, 
-  FaIdCard, 
-  FaPowerOff, 
-  FaTimes, 
-  FaSave, 
-  FaPlus,
-  FaSpinner,
-  FaUser,
-  FaEnvelope,
-  FaPhone,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
-  FaCheck,
-  FaExclamationTriangle
-} from "react-icons/fa";
+import { useState, type FormEvent } from "react";
+// Iconos
+import { FaIdBadge, FaIdCard, FaPowerOff } from "react-icons/fa";
+// Componentes
+import PersonaForm from "../../components/modals/PersonaForm";
+import InputField from "../Clients/InputField";
+import SelectField from "../Clients/SelectField";
 import { ConductorService } from "../../services/envios/conductorService";
-import type { ConductorDTO } from "../../types/Conductor/conductor";
-import type { ConductorForm } from "../../types/Conductor/conductorform";
+import type { Conductor } from "../../types/Conductor/conductor";
 
 interface Props {
   onSaved?: () => void;
@@ -56,30 +45,64 @@ const INITIAL_FORM: ConductorForm = {
 
 export default function ConductorModal({ onSaved }: Props) {
   const [show, setShow] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [validatingDni, setValidatingDni] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  const [form, setForm] = useState<ConductorForm>(INITIAL_FORM);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Resetear formulario al abrir/cerrar
-  useEffect(() => {
-    if (show) {
-      setErrors({});
-    } else {
-      setForm(INITIAL_FORM);
-      setValidatingDni(false);
-    }
-  }, [show]);
+  // --- LÓGICA DE ESTADO (Restaurada a la versión que funcionaba) ---
+  const [state, setState] = useState<Conductor>({
+    persona: {
+      tipoDocumento: "DNI",
+      numeroDocumento: "",
+      nombres: "",
+      apellidoPaterno: "",
+      apellidoMaterno: "",
+      correo: "",
+      telefono: "",
+      direccion: "",
+      fechaNacimiento: ""
+    },
+    licencia: "",
+    categoriaLicencia: "",
+    estado: "DISPONIBLE"
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
+  // Lista de campos que pertenecen a "Persona" para redirección automática
+  const personaFields = [
+    "tipoDocumento", "numeroDocumento", "nombres", 
+    "apellidoPaterno", "apellidoMaterno", "correo", 
+    "telefono", "direccion", "fechaNacimiento"
+  ];
+
+ const setField = (path: string, value: any) => {
+    let targetPath = path;
     
-    // Limpiar error del campo al editar
-    if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
+    // Aseguramos que sea string
+    let finalValue = value ? String(value) : "";
+
+    // --- 1. VALIDACIÓN DNI ---
+    // Usamos .includes para que funcione con "numeroDocumento" O "persona.numeroDocumento"
+    if (path.includes("numeroDocumento")) {
+        finalValue = finalValue.replace(/\D/g, '').slice(0, 8);
+    }
+
+    // --- 2. VALIDACIÓN TELÉFONO ---
+    if (path.includes("telefono")) {
+        finalValue = finalValue.replace(/\D/g, '').slice(0, 9);
+    }
+
+    // --- 3. RUTEO INTELIGENTE ---
+    // Si el path es exactamente uno de los campos de persona (sin prefijo), se lo agregamos
+    if (personaFields.includes(path)) {
+        targetPath = `persona.${path}`;
+    }
+
+    setState(prev => {
+      const keys = targetPath.split(".");
+      const copy: any = { ...prev };
+      let ref = copy;
+
+      keys.slice(0, -1).forEach(k => {
+        ref[k] = { ...ref[k] };
+        ref = ref[k];
       });
     }
     
@@ -103,27 +126,9 @@ export default function ConductorModal({ onSaved }: Props) {
       return false;
     }
 
-    if (dni.length !== 8) {
-      setErrors(prev => ({ ...prev, 'persona.numeroDocumento': "El DNI debe tener 8 dígitos" }));
-      return false;
-    }
-
-    setValidatingDni(true);
-    
-    try {
-      const existe = await ConductorService.validarDni(dni);
-
-      if (existe) {
-        setErrors(prev => ({ ...prev, 'persona.numeroDocumento': "Este DNI ya está registrado" }));
-        return false;
-      }
-      return true;
-    } catch {
-      setErrors(prev => ({ ...prev, 'persona.numeroDocumento': "Error validando DNI" }));
-      return false;
-    } finally {
-      setValidatingDni(false);
-    }
+      ref[keys[keys.length - 1]] = finalValue;
+      return copy;
+    });
   };
 
   const validateForm = async (): Promise<boolean> => {
@@ -151,409 +156,185 @@ export default function ConductorModal({ onSaved }: Props) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     
-    if (!(await validateForm())) {
-      return;
+    if (!state.persona.numeroDocumento || !state.licencia) {
+        alert("⚠️ Por favor completa el DNI y la Licencia.");
+        return;
     }
 
-    setIsSubmitting(true);
-    
+    setIsLoading(true);
     try {
-      const dto: ConductorDTO = {
-        ...form.persona,
-        licencia: form.licencia,
-        categoriaLicencia: form.categoriaLicencia,
-        estado: form.estado
+      // Aplanamos los datos para que Java no reciba NULL
+      const datosParaEnviar = {
+        ...state.persona,
+        licencia: state.licencia,
+        categoriaLicencia: state.categoriaLicencia,
+        estado: state.estado
       };
 
-      await ConductorService.crearConductor(dto);
-
+      await ConductorService.crearConductor(datosParaEnviar as any);
       setShow(false);
       setForm(INITIAL_FORM);
       onSaved?.();
+      
+      // Limpiar formulario
+      setState({
+        persona: { tipoDocumento: "DNI", numeroDocumento: "", nombres: "", apellidoPaterno: "", apellidoMaterno: "", correo: "", telefono: "", direccion: "", fechaNacimiento: "" },
+        licencia: "",
+        categoriaLicencia: "",
+        estado: "DISPONIBLE"
+      });
+
     } catch (err) {
-      console.error("Error creando conductor:", err);
-      alert("No se pudo crear el conductor");
+      console.error(err);
+      alert("❌ Error al registrar conductor.");
     } finally {
-      setIsSubmitting(false);
+        setIsLoading(false);
     }
   };
 
   return (
     <>
+      {/* BOTÓN PRINCIPAL */}
       <button
         onClick={() => setShow(true)}
-        className="flex items-center gap-2 bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2.5 rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 shadow-md hover:shadow-lg"
+        className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-all shadow-sm active:scale-95 text-sm md:text-base"
       >
-        <FaPlus className="text-sm" />
-        <span className="font-medium">Nuevo Conductor</span>
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
+        <span className="hidden sm:inline">Nuevo Conductor</span>
+        <span className="sm:hidden">Nuevo</span>
       </button>
 
+      {/* MODAL OVERLAY */}
       {show && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
-          <div 
-            className="bg-white rounded-2xl w-full max-w-4xl shadow-2xl animate-fade-in overflow-y-auto max-h-[90vh]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="sticky top-0 bg-white p-6 border-b border-gray-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <FaIdBadge className="text-green-600 text-xl" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Registrar Nuevo Conductor</h2>
-                  <p className="text-sm text-gray-500">Complete los datos del conductor</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShow(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <FaTimes className="text-gray-500" />
-              </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity">
+          
+          {/* TARJETA DEL MODAL */}
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg lg:max-w-5xl overflow-hidden flex flex-col max-h-[95vh] sm:max-h-[90vh] animate-fade-in-up">
+            
+            {/* HEADER */}
+            <div className="flex justify-between items-center px-4 py-3 md:px-6 md:py-4 border-b border-gray-100 bg-gray-50 shrink-0">
+                <h2 className="text-lg md:text-xl font-bold text-gray-800 flex items-center gap-2">
+                  <div className="bg-green-100 p-1.5 md:p-2 rounded-lg text-green-600">
+                    <FaIdBadge className="text-lg md:text-xl" />
+                  </div>
+                  Registrar Conductor
+                </h2>
+                <button 
+                  onClick={() => setShow(false)} 
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
             </div>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* Columna Izquierda - Información Personal */}
-                <div className="space-y-5">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
-                    Información Personal
-                  </h3>
+            {/* BODY (SCROLLABLE) */}
+            <form onSubmit={submit} className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+              
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10">
 
-                  {/* Tipo Documento */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaIdCard className="text-blue-600" />
-                      Tipo de Documento
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="persona.tipoDocumento"
-                        value={form.persona.tipoDocumento}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all appearance-none"
-                      >
-                        {TIPOS_DOCUMENTO.map(tipo => (
-                          <option key={tipo} value={tipo}>{tipo}</option>
-                        ))}
-                      </select>
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaIdCard />
-                      </div>
+                {/* COLUMNA 1: PERSONA */}
+                <div className="space-y-4 md:space-y-6">
+                    <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
+                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-green-100 text-green-600 text-xs font-bold">1</span>
+                        <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Datos Personales</h3>
                     </div>
-                  </div>
-
-                  {/* Número Documento */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaIdCard className="text-purple-600" />
-                      Número de Documento
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="persona.numeroDocumento"
-                        placeholder="Ej: 12345678"
-                        value={form.persona.numeroDocumento}
-                        onChange={handleChange}
-                        onBlur={validarDni}
-                        maxLength={8}
-                        className={`w-full pl-10 pr-10 py-2.5 border ${errors['persona.numeroDocumento'] ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all`}
-                        required
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaIdCard />
-                      </div>
-                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
-                        {validatingDni ? (
-                          <FaSpinner className="animate-spin text-green-500" />
-                        ) : errors['persona.numeroDocumento'] ? (
-                          <FaExclamationTriangle className="text-red-500" />
-                        ) : form.persona.numeroDocumento.length === 8 ? (
-                          <FaCheck className="text-green-500" />
-                        ) : null}
-                      </div>
-                    </div>
-                    {errors['persona.numeroDocumento'] && (
-                      <p className="text-sm text-red-500 flex items-center gap-1">
-                        ⚠️ {errors['persona.numeroDocumento']}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Nombres */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaUser className="text-indigo-600" />
-                      Nombres Completos
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="persona.nombres"
-                        placeholder="Ej: Juan Carlos"
-                        value={form.persona.nombres}
-                        onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-2.5 border ${errors['persona.nombres'] ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all`}
-                        required
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaUser />
-                      </div>
-                    </div>
-                    {errors['persona.nombres'] && (
-                      <p className="text-sm text-red-500 flex items-center gap-1">
-                        ⚠️ {errors['persona.nombres']}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Apellidos */}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <FaUser className="text-gray-600" />
-                        Apellido Paterno
-                      </label>
-                      <div className="relative">
-                        <input
-                          name="persona.apellidoPaterno"
-                          placeholder="Ej: Pérez"
-                          value={form.persona.apellidoPaterno}
-                          onChange={handleChange}
-                          className={`w-full pl-10 pr-4 py-2.5 border ${errors['persona.apellidoPaterno'] ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all`}
-                          required
+                    
+                    {/* Contenedor del formulario de persona */}
+                    <div className="bg-gray-50/50 p-3 md:p-4 rounded-xl border border-gray-100">
+                        {/* Usamos el setField inteligente que detecta los campos */}
+                        <PersonaForm
+                          persona={state.persona}
+                          setField={setField}
                         />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                          <FaUser />
-                        </div>
-                      </div>
-                      {errors['persona.apellidoPaterno'] && (
-                        <p className="text-sm text-red-500 flex items-center gap-1">
-                          ⚠️ {errors['persona.apellidoPaterno']}
-                        </p>
-                      )}
                     </div>
-
-                    <div className="space-y-1">
-                      <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                        <FaUser className="text-gray-600" />
-                        Apellido Materno
-                      </label>
-                      <div className="relative">
-                        <input
-                          name="persona.apellidoMaterno"
-                          placeholder="Ej: Gómez"
-                          value={form.persona.apellidoMaterno}
-                          onChange={handleChange}
-                          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all"
-                        />
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                          <FaUser />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Fecha Nacimiento */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaCalendarAlt className="text-amber-600" />
-                      Fecha de Nacimiento
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="date"
-                        name="persona.fechaNacimiento"
-                        value={form.persona.fechaNacimiento}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all"
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaCalendarAlt />
-                      </div>
-                    </div>
-                  </div>
                 </div>
 
-                {/* Columna Derecha - Contacto e Información Conductor */}
-                <div className="space-y-5">
-                  <h3 className="text-lg font-semibold text-gray-800 border-b border-gray-200 pb-2 mb-4">
-                    Contacto e Información del Conductor
-                  </h3>
-
-                  {/* Correo */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaEnvelope className="text-red-500" />
-                      Correo Electrónico
-                    </label>
-                    <div className="relative">
-                      <input
-                        type="email"
-                        name="persona.correo"
-                        placeholder="Ej: correo@example.com"
-                        value={form.persona.correo}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all"
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaEnvelope />
-                      </div>
-                    </div>
+                {/* COLUMNA 2: CONDUCTOR */}
+                <div className="space-y-4 md:space-y-6">
+                  <div className="flex items-center gap-3 border-b border-gray-100 pb-2">
+                      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-blue-100 text-blue-600 text-xs font-bold">2</span>
+                      <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide">Información Laboral</h3>
                   </div>
 
-                  {/* Teléfono */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaPhone className="text-green-600" />
-                      Teléfono / Móvil
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="persona.telefono"
-                        placeholder="Ej: 987654321"
-                        value={form.persona.telefono}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all"
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaPhone />
-                      </div>
+                  <div className="space-y-4 bg-white p-1">
+                    <div className="transition-all hover:bg-gray-50 p-2 rounded-lg -mx-2">
+                        <InputField
+                            label="Licencia de Conducir"
+                            icon={<FaIdCard className="text-green-500" />}
+                            value={state.licencia}
+                            onChange={(v: any) => setField("licencia", v)}
+                            required
+                        />
+                    </div>
+
+                    <div className="transition-all hover:bg-gray-50 p-2 rounded-lg -mx-2">
+                        <SelectField
+                            label="Categoría de Licencia"
+                            icon={<FaIdBadge className="text-green-500" />}
+                            value={state.categoriaLicencia}
+                            options={["A-I", "A-IIa", "A-IIb", "A-IIIa", "A-IIIb", "A-IIIc"]}
+                            onChange={(v: any) => setField("categoriaLicencia", v)}
+                            required
+                        />
+                    </div>
+
+                    <div className="transition-all hover:bg-gray-50 p-2 rounded-lg -mx-2">
+                        <SelectField
+                            label="Estado"
+                            icon={<FaPowerOff className={state.estado === 'DISPONIBLE' ? 'text-green-500' : 'text-gray-400'} />}
+                            value={state.estado}
+                            options={["DISPONIBLE", "EN_RUTA", "INACTIVO"]}
+                            onChange={(v: any) => setField("estado", v)}
+                            required
+                        />
                     </div>
                   </div>
-
-                  {/* Dirección */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaMapMarkerAlt className="text-blue-500" />
-                      Dirección de Domicilio
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="persona.direccion"
-                        placeholder="Ej: Av. Principal 123"
-                        value={form.persona.direccion}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all"
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaMapMarkerAlt />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Licencia */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaIdCard className="text-purple-600" />
-                      Licencia de Conducir
-                    </label>
-                    <div className="relative">
-                      <input
-                        name="licencia"
-                        placeholder="Ej: A12345678"
-                        value={form.licencia}
-                        onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-2.5 border ${errors.licencia ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all uppercase`}
-                        required
-                      />
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaIdCard />
-                      </div>
-                    </div>
-                    {errors.licencia && (
-                      <p className="text-sm text-red-500 flex items-center gap-1">
-                        ⚠️ {errors.licencia}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Categoría Licencia */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaIdBadge className="text-amber-600" />
-                      Categoría de Licencia
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="categoriaLicencia"
-                        value={form.categoriaLicencia}
-                        onChange={handleChange}
-                        className={`w-full pl-10 pr-4 py-2.5 border ${errors.categoriaLicencia ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all appearance-none`}
-                        required
-                      >
-                        <option value="">-- Seleccionar --</option>
-                        {CATEGORIAS_LICENCIA.map(cat => (
-                          <option key={cat} value={cat}>{cat}</option>
-                        ))}
-                      </select>
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaIdBadge />
-                      </div>
-                    </div>
-                    {errors.categoriaLicencia && (
-                      <p className="text-sm text-red-500 flex items-center gap-1">
-                        ⚠️ {errors.categoriaLicencia}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Estado */}
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                      <FaPowerOff className="text-gray-600" />
-                      Estado
-                    </label>
-                    <div className="relative">
-                      <select
-                        name="estado"
-                        value={form.estado}
-                        onChange={handleChange}
-                        className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500/30 focus:border-green-500 transition-all appearance-none"
-                      >
-                        <option value="DISPONIBLE">Disponible</option>
-                        <option value="EN_RUTA">En Ruta</option>
-                        <option value="INACTIVO">Inactivo</option>
-                      </select>
-                      <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                        <FaPowerOff />
-                      </div>
-                    </div>
+                  
+                  {/* Info Box */}
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 md:p-4 flex gap-3 items-start">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p className="text-xs text-blue-800 leading-relaxed">
+                        Asegúrese de validar la licencia. El conductor estará disponible inmediatamente.
+                    </p>
                   </div>
                 </div>
               </div>
+            </form>
 
-              {/* Footer */}
-              <div className="flex justify-end gap-3 pt-6 mt-6 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setShow(false)}
-                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
-                  disabled={isSubmitting || validatingDni}
+            {/* FOOTER */}
+            <div className="px-4 py-4 md:px-8 md:py-5 border-t border-gray-100 bg-gray-50 flex flex-col-reverse sm:flex-row justify-end gap-3 shrink-0">
+                <button 
+                    type="button" 
+                    onClick={() => setShow(false)} 
+                    className="w-full sm:w-auto px-6 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 transition-all shadow-sm"
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || validatingDni}
-                  className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg hover:from-green-600 hover:to-green-700 transition-all duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                <button 
+                    onClick={submit} 
+                    disabled={isLoading}
+                    className="w-full sm:w-auto px-6 py-2.5 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 focus:outline-none focus:ring-4 focus:ring-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? (
+                  {isLoading ? (
                     <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
                       Guardando...
                     </>
                   ) : (
-                    <>
-                      <FaSave />
-                      Guardar Conductor
-                    </>
+                    'Guardar Conductor'
                   )}
                 </button>
-              </div>
-            </form>
+            </div>
+
           </div>
         </div>
       )}

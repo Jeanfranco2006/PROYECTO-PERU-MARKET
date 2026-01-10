@@ -1,16 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent, useEffect } from "react";
 import { RutaService } from "../../services/envios/rutaService";
-import { 
-  FaRoute, 
-  FaMapMarkerAlt, 
-  FaMapMarkedAlt, 
-  FaRoad, 
-  FaClock, 
-  FaDollarSign,
-  FaTimes,
-  FaSave,
-  FaPlus
-} from "react-icons/fa";
 
 interface Props {
   onSaved?: () => void;
@@ -18,9 +7,8 @@ interface Props {
 
 export default function RutaModal({ onSaved }: Props) {
   const [show, setShow] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-  
+  const [isLoading, setIsLoading] = useState(false);
+
   const [form, setForm] = useState({
     nombre: "",
     origen: "",
@@ -81,13 +69,7 @@ export default function RutaModal({ onSaved }: Props) {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    setIsSubmitting(true);
-    
+    setIsLoading(true);
     try {
       await RutaService.crearRuta({
         nombre: form.nombre,
@@ -110,251 +92,145 @@ export default function RutaModal({ onSaved }: Props) {
       onSaved?.();
     } catch (error: any) {
       console.error("Error creando ruta:", error);
-      alert(error.message || "Ocurrió un error al crear la ruta.");
+      alert("Ocurrió un error al crear la ruta."); // Podrías cambiar esto por un toast notification
     } finally {
-      setIsSubmitting(false);
+      setIsLoading(false);
     }
   };
 
   return (
     <>
+      {/* BOTÓN: Color Yellow/Amber para coincidir con la imagen (+ Nueva Ruta) */}
       <button
         onClick={() => setShow(true)}
-        className="flex items-center gap-2 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white px-4 py-2.5 rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition-all duration-200 shadow-md hover:shadow-lg"
+        className="flex items-center gap-2 bg-yellow-600 hover:bg-yellow-700 text-white font-medium px-4 py-2 rounded-lg transition-colors shadow-sm"
       >
-        <FaPlus className="text-sm" />
-        <span className="font-medium">Nueva Ruta</span>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-5 h-5">
+            <path fillRule="evenodd" d="M11.54 22.351l.07.04.028.016a.76.76 0 00.723 0l.028-.015.071-.041a16.975 16.975 0 001.144-.742 19.58 19.58 0 002.683-2.282c1.944-1.99 3.963-4.98 3.963-8.827a8.25 8.25 0 00-16.5 0c0 3.846 2.02 6.837 3.963 8.827a19.58 19.58 0 002.682 2.282 16.975 16.975 0 001.145.742zM12 13.5a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+        </svg>
+        Nueva Ruta
       </button>
 
+      {/* MODAL */}
       {show && (
-        <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50 p-4">
-          <div 
-            className="bg-white rounded-2xl w-full max-w-md shadow-2xl animate-fade-in"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          
+          <div className="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden animate-fade-in-up">
+            
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-100">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-yellow-100 rounded-lg">
-                  <FaRoute className="text-yellow-600 text-xl" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Registrar Nueva Ruta</h2>
-                  <p className="text-sm text-gray-500">Complete los datos de la ruta de envío</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShow(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <FaTimes className="text-gray-500" />
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50">
+              <h2 className="text-lg font-bold text-gray-800">Registrar Ruta</h2>
+              <button onClick={() => setShow(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
               </button>
             </div>
 
-            {/* Form */}
+            {/* Formulario */}
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              {/* Nombre */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaRoute className="text-yellow-600" />
-                  Nombre de la Ruta
-                </label>
-                <div className="relative">
-                  <input
-                    name="nombre"
-                    placeholder="Ej: Ruta Lima - Trujillo"
-                    value={form.nombre}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-2.5 border ${errors.nombre ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500 transition-all`}
-                    required
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaRoute />
-                  </div>
-                </div>
-                {errors.nombre && (
-                  <p className="text-sm text-red-500 flex items-center gap-1">
-                    ⚠️ {errors.nombre}
-                  </p>
-                )}
+              
+              {/* Nombre de la Ruta */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Nombre de la Ruta</label>
+                <input 
+                  name="nombre" 
+                  placeholder="Ej. Ruta Norte Express" 
+                  value={form.nombre} 
+                  onChange={handleChange} 
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all placeholder-gray-400" 
+                  required 
+                />
               </div>
 
-              {/* Origen y Destino */}
+              {/* Grid: Origen y Destino */}
               <div className="grid grid-cols-2 gap-4">
-                {/* Origen */}
-                <div className="space-y-1">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaMapMarkerAlt className="text-green-600" />
-                    Origen
-                  </label>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Origen</label>
                   <div className="relative">
-                    <input
-                      name="origen"
-                      placeholder="Ej: Lima"
-                      value={form.origen}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-2.5 border ${errors.origen ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500 transition-all`}
-                      required
+                    <input 
+                        name="origen" 
+                        placeholder="Ciudad A" 
+                        value={form.origen} 
+                        onChange={handleChange} 
+                        className="w-full pl-3 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all" 
+                        required 
                     />
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                      <FaMapMarkerAlt />
-                    </div>
                   </div>
-                  {errors.origen && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      ⚠️ {errors.origen}
-                    </p>
-                  )}
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Destino</label>
+                  <input 
+                    name="destino" 
+                    placeholder="Ciudad B" 
+                    value={form.destino} 
+                    onChange={handleChange} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all" 
+                    required 
+                  />
+                </div>
+              </div>
 
-                {/* Destino */}
-                <div className="space-y-1">
-                  <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                    <FaMapMarkedAlt className="text-blue-600" />
-                    Destino
-                  </label>
+              {/* Grid: Métricas (3 columnas) */}
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Distancia (km)</label>
+                  <input 
+                    type="number" 
+                    name="distancia_km" 
+                    placeholder="0" 
+                    value={form.distancia_km ?? ""} 
+                    onChange={handleChange} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Tiempo (h)</label>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    name="tiempo_estimado_horas" 
+                    placeholder="0.0" 
+                    value={form.tiempo_estimado_horas ?? ""} 
+                    onChange={handleChange} 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">Costo Base</label>
                   <div className="relative">
-                    <input
-                      name="destino"
-                      placeholder="Ej: Trujillo"
-                      value={form.destino}
-                      onChange={handleChange}
-                      className={`w-full pl-10 pr-4 py-2.5 border ${errors.destino ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500 transition-all`}
-                      required
+                    <span className="absolute left-3 top-2 text-gray-500 text-sm">S/</span>
+                    <input 
+                        type="number" 
+                        step="0.01" 
+                        name="costo_base" 
+                        placeholder="0.00" 
+                        value={form.costo_base ?? ""} 
+                        onChange={handleChange} 
+                        className="w-full pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500 transition-all" 
                     />
-                    <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                      <FaMapMarkedAlt />
-                    </div>
                   </div>
-                  {errors.destino && (
-                    <p className="text-sm text-red-500 flex items-center gap-1">
-                      ⚠️ {errors.destino}
-                    </p>
-                  )}
                 </div>
               </div>
 
-              {/* Distancia */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaRoad className="text-gray-600" />
-                  Distancia (km)
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    name="distancia_km"
-                    placeholder="Ej: 560.5"
-                    value={form.distancia_km}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-2.5 border ${errors.distancia_km ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500 transition-all`}
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaRoad />
-                  </div>
-                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                    km
-                  </span>
-                </div>
-                {errors.distancia_km && (
-                  <p className="text-sm text-red-500 flex items-center gap-1">
-                    ⚠️ {errors.distancia_km}
-                  </p>
-                )}
-              </div>
-
-              {/* Tiempo */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaClock className="text-purple-600" />
-                  Tiempo Estimado
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    name="tiempo_estimado_horas"
-                    placeholder="Ej: 8.5"
-                    value={form.tiempo_estimado_horas}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-2.5 border ${errors.tiempo_estimado_horas ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500 transition-all`}
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaClock />
-                  </div>
-                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                    horas
-                  </span>
-                </div>
-                {errors.tiempo_estimado_horas && (
-                  <p className="text-sm text-red-500 flex items-center gap-1">
-                    ⚠️ {errors.tiempo_estimado_horas}
-                  </p>
-                )}
-              </div>
-
-              {/* Costo */}
-              <div className="space-y-1">
-                <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <FaDollarSign className="text-green-600" />
-                  Costo Base
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    name="costo_base"
-                    placeholder="Ej: 250.00"
-                    value={form.costo_base}
-                    onChange={handleChange}
-                    className={`w-full pl-10 pr-4 py-2.5 border ${errors.costo_base ? 'border-red-300' : 'border-gray-300'} rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-500/30 focus:border-yellow-500 transition-all`}
-                  />
-                  <div className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">
-                    <FaDollarSign />
-                  </div>
-                  <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 text-sm">
-                    S/
-                  </span>
-                </div>
-                {errors.costo_base && (
-                  <p className="text-sm text-red-500 flex items-center gap-1">
-                    ⚠️ {errors.costo_base}
-                  </p>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="flex justify-end gap-3 pt-6 border-t border-gray-100">
-                <button
-                  type="button"
-                  onClick={() => setShow(false)}
-                  className="px-5 py-2.5 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-all duration-200 font-medium"
-                  disabled={isSubmitting}
+              {/* Botones */}
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-100 mt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShow(false)} 
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Cancelar
                 </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-5 py-2.5 bg-gradient-to-r from-yellow-500 to-yellow-600 text-white rounded-lg hover:from-yellow-600 hover:to-yellow-700 transition-all duration-200 font-medium flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                <button 
+                  type="submit" 
+                  disabled={isLoading}
+                  className="px-4 py-2 text-sm font-medium text-white bg-yellow-600 rounded-lg hover:bg-yellow-700 focus:ring-4 focus:ring-yellow-200 transition-all disabled:opacity-50"
                 >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <FaSave />
-                      Guardar Ruta
-                    </>
-                  )}
+                  {isLoading ? 'Guardando...' : 'Guardar Ruta'}
                 </button>
               </div>
+
             </form>
           </div>
         </div>
