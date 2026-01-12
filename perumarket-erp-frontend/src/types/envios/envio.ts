@@ -49,6 +49,10 @@ export interface Envio {
   costoTransporte?: number;
   estado: EstadoEnvio;
   observaciones?: string;
+
+   // Agregar coordenadas
+  latitud?: number;
+  longitud?: number;
 }
 
 // ... Mantén el resto de tus interfaces (ActualizarEnvioDTO, FormDataEnvio, PedidoDTO)
@@ -66,6 +70,9 @@ export interface ActualizarEnvioDTO {
 
 export interface FormDataEnvio extends ActualizarEnvioDTO {
   idVenta?: number;
+  // Agregar coordenadas al formulario
+  latitud?: number;
+  longitud?: number;
 }
 
 export interface PedidoDTO {

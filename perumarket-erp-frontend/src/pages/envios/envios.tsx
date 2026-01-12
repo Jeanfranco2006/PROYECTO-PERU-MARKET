@@ -1,18 +1,19 @@
-import React, { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react";
+import React, { useEffect, useMemo, useState, type FormEvent } from "react";
+
 import {
   FiPlus, FiEdit, FiEye, FiTruck,
   FiPackage, FiSearch, FiX, FiBox, FiShoppingCart, FiCheck, FiCalendar,
   FiUser,
-  FiMap
+  FiMap,
+  FiMapPin
 } from "react-icons/fi";
 import { enviosService } from "../../services/envios/envioServices";
 import { api } from "../../services/api";
 import VehiculoModal from "./RegistarVehiculoModal";
 import ConductorModal from "./ConductorModal";
 import RutaModal from "./RutaModal";
-import type { Envio, FormDataEnvio } from "../../types/envios/envio";
-
-type EstadoEnvio = "PENDIENTE" | "EN_RUTA" | "ENTREGADO" | "CANCELADO";
+import type { Envio, FormDataEnvio, EstadoEnvio } from "../../types/envios/envio";
+import OpenStreetMapSelector from "../../components/GoogleMapsSelector";
 
 export default function Envios() {
   // ========== ESTADOS ==========
@@ -25,6 +26,7 @@ export default function Envios() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showCrearEnvioModal, setShowCrearEnvioModal] = useState(false);
+  const [showMapModal, setShowMapModal] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterEstado, setFilterEstado] = useState<EstadoEnvio | "">("");
@@ -54,9 +56,15 @@ export default function Envios() {
     observaciones: ""
   });
 
+  // Estado para las coordenadas del mapa
+  const [selectedLocation, setSelectedLocation] = useState<{
+    lat: number;
+    lng: number;
+    address: string;
+  } | null>(null);
+
   // ========== FUNCIONES PRINCIPALES ==========
 
-  // Reiniciar formulario
   const resetForm = () => {
     setFormData({
       idVenta: undefined,
@@ -71,28 +79,23 @@ export default function Envios() {
       observaciones: ""
     });
     setPedidoSeleccionado(null);
+    setSelectedLocation(null);
   };
 
-  // Cargar todos los datos
   const cargarDatos = async () => {
     try {
       setLoading(prev => ({ ...prev, envios: true, pedidos: true, combos: true }));
 
-      // Cargar envíos existentes
-      const enviosData = await enviosService.listar();
-      setEnvios(Array.isArray(enviosData) ? enviosData : []);
-
-      // Cargar pedidos disponibles para envío
-      const pedidosData = await enviosService.listarPedidosDisponibles();
-      setPedidosDisponibles(Array.isArray(pedidosData) ? pedidosData : []);
-
-      // Cargar combos
-      const [vehiculosRes, conductoresRes, rutasRes] = await Promise.all([
+      const [enviosData, pedidosData, vehiculosRes, conductoresRes, rutasRes] = await Promise.all([
+        enviosService.listar(),
+        enviosService.listarPedidosDisponibles(),
         api.get("/vehiculos/disponibles"),
         api.get("/conductores/disponibles"),
         api.get("/rutas")
       ]);
 
+      setEnvios(Array.isArray(enviosData) ? enviosData : []);
+      setPedidosDisponibles(Array.isArray(pedidosData) ? pedidosData : []);
       setVehiculos(vehiculosRes.data || []);
       setConductores(conductoresRes.data || []);
       setRutas(rutasRes.data || []);
@@ -105,19 +108,26 @@ export default function Envios() {
     }
   };
 
-  // Iniciar creación de envío desde un pedido
+  const handleLocationSelect = (lat: number, lng: number, address: string) => {
+    setSelectedLocation({ lat, lng, address });
+    setFormData(prev => ({ ...prev, direccionEnvio: address }));
+    setShowMapModal(false);
+  };
+
+  const openMapModal = () => {
+    setShowMapModal(true);
+  };
+
   const iniciarCrearEnvio = (pedido: any) => {
     console.log("📦 Pedido seleccionado para crear envío:", pedido);
     setPedidoSeleccionado(pedido);
     setFormData(prev => ({
       ...prev,
       idVenta: pedido.idVenta || pedido.id,
-      
     }));
     setShowCrearEnvioModal(true);
   };
 
-  // Crear nuevo envío
   const handleCrearEnvio = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -134,7 +144,7 @@ export default function Envios() {
     try {
       console.log("🚀 Creando envío con datos:", formData);
 
-      const nuevoEnvio = await enviosService.crear({
+      const envioData = {
         idVenta: formData.idVenta,
         idVehiculo: formData.idVehiculo,
         idConductor: formData.idConductor,
@@ -144,8 +154,14 @@ export default function Envios() {
         fechaEntrega: formData.fechaEntrega,
         costoTransporte: formData.costoTransporte,
         estado: formData.estado,
-        observaciones: formData.observaciones
-      });
+        observaciones: formData.observaciones,
+        ...(selectedLocation && {
+          latitud: selectedLocation.lat,
+          longitud: selectedLocation.lng
+        })
+      };
+
+      const nuevoEnvio = await enviosService.crear(envioData);
 
       alert("✅ Envío creado correctamente");
       setShowCrearEnvioModal(false);
@@ -158,7 +174,6 @@ export default function Envios() {
     }
   };
 
-  // Editar envío existente
   const handleEditarEnvio = (envio: Envio) => {
     setEnvioSeleccionado(envio);
     setFormData({
@@ -173,10 +188,11 @@ export default function Envios() {
       estado: envio.estado,
       observaciones: envio.observaciones ?? ""
     });
+    
+    setSelectedLocation(null);
     setShowModal(true);
   };
 
-  // Actualizar envío existente
   const handleActualizarEnvio = async (e: FormEvent) => {
     e.preventDefault();
 
@@ -188,20 +204,23 @@ export default function Envios() {
     }
 
     try {
-      await enviosService.actualizar(idParaActualizar, {
+      const updateData = {
         idVehiculo: formData.idVehiculo,
         idConductor: formData.idConductor,
         idRuta: formData.idRuta,
         direccionEnvio: formData.direccionEnvio,
         fechaEnvio: formData.fechaEnvio,
         fechaEntrega: formData.fechaEntrega,
-        
-        // ✅ IMPORTANTE: Convertir a Number explícitamente para evitar errores
         costoTransporte: Number(formData.costoTransporte),
-        
         estado: formData.estado,
-        observaciones: formData.observaciones
-      });
+        observaciones: formData.observaciones,
+        ...(selectedLocation && {
+          latitud: selectedLocation.lat,
+          longitud: selectedLocation.lng
+        })
+      };
+
+      await enviosService.actualizar(idParaActualizar, updateData);
 
       alert("✅ Envío actualizado correctamente");
       setShowModal(false);
@@ -214,7 +233,6 @@ export default function Envios() {
     }
   };
 
-  // Eliminar envío
   const handleEliminarEnvio = async () => {
     if (!envioSeleccionado) return;
 
@@ -231,24 +249,20 @@ export default function Envios() {
     }
   };
 
-  // Cambiar estado de envío
   const cambiarEstadoEnvio = async (id: number, estado: EstadoEnvio) => {
-    if (!id) return; // Validación extra
+    if (!id) return;
     try {
       await enviosService.actualizar(id, { estado });
       cargarDatos();
-      // alert("✅ Estado actualizado"); // Opcional: quitar alert para UX más fluida
     } catch (error) {
       console.error("Error cambiando estado:", error);
       alert("❌ Error al cambiar estado");
     }
   };
 
-  // Filtrar envíos
   const enviosFiltrados = useMemo(() => {
     return envios.filter(e => {
       const search = searchTerm.toLowerCase();
-      // CORRECCIÓN: Acceso seguro a propiedades planas
       const pedidoId = e.idPedido?.toString() || "";
       const direccion = e.direccionEnvio?.toLowerCase() || "";
       const cliente = e.nombreCliente?.toLowerCase() || "";
@@ -260,7 +274,6 @@ export default function Envios() {
     });
   }, [envios, searchTerm, filterEstado]);
 
-  // Filtrar pedidos disponibles
   const pedidosFiltrados = useMemo(() => {
     return pedidosDisponibles.filter(p => {
       const search = searchTerm.toLowerCase();
@@ -272,7 +285,6 @@ export default function Envios() {
     });
   }, [pedidosDisponibles, searchTerm]);
 
-  // Cargar datos al inicio
   useEffect(() => {
     cargarDatos();
   }, []);
@@ -288,7 +300,7 @@ export default function Envios() {
     }
   };
 
-  const formatDate = (dateString?: string | null) => { // 👈 Aceptamos undefined/null
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return "-";
     return new Date(dateString).toLocaleDateString('es-ES', {
       day: '2-digit',
@@ -296,8 +308,6 @@ export default function Envios() {
       year: 'numeric'
     });
   };
-
-  const enviosConPedido = envios.filter(e => e.pedido != null);
 
   return (
     <div className="w-full p-4 sm:p-6 bg-gray-50 min-h-screen">
@@ -462,7 +472,7 @@ export default function Envios() {
                         <div className="text-xs text-gray-500">Venta #{pedido.idVenta}</div>
                       </td>
                       <td className="p-4">
-                        <div className="font-medium text-gray-900">{pedido.clienteNombre}</div>
+                        <div className="font-medium text-gray-900">{pedido.clienteNombre || pedido.nombreCliente}</div>
                         {pedido.dniCliente && (
                           <div className="text-xs text-gray-500">DNI: {pedido.dniCliente}</div>
                         )}
@@ -553,24 +563,22 @@ export default function Envios() {
                   </tr>
                 ) : (
                   enviosFiltrados.map((envio) => (
-                    // Usamos envio.idEnvio porque es lo que manda Java
                     <tr key={envio.idEnvio || envio.id} className="border-b border-gray-200 hover:bg-gray-50 transition-colors">
-
-                      {/* 1. PEDIDO: Usamos idPedido directo */}
+                      {/* 1. PEDIDO */}
                       <td className="p-4">
                         <div className="font-semibold text-gray-900">
-                          #{envio.idPedido || (envio.pedido ? envio.pedido.id : '?')}
+                          #{envio.idPedido || envio.pedido?.id}
                         </div>
                       </td>
 
-                      {/* 2. CLIENTE: Usamos nombreCliente directo */}
+                      {/* 2. CLIENTE */}
                       <td className="p-4">
                         <div className="text-gray-900 font-medium">
-                          {envio.nombreCliente || (envio.pedido?.cliente?.nombre) || 'Sin cliente'}
+                          {envio.nombreCliente || envio.pedido?.cliente?.nombre || 'Sin cliente'}
                         </div>
                       </td>
 
-                      {/* 3. VEHÍCULO: Usamos placaVehiculo directo */}
+                      {/* 3. VEHÍCULO */}
                       <td className="p-4">
                         {(envio.placaVehiculo || envio.vehiculo?.placa) ? (
                           <div>
@@ -579,7 +587,7 @@ export default function Envios() {
                         ) : <span className="text-gray-400">-</span>}
                       </td>
 
-                      {/* 4. CONDUCTOR: Usamos nombreConductor directo */}
+                      {/* 4. CONDUCTOR */}
                       <td className="p-4">
                         <div className="text-gray-900">
                           {envio.nombreConductor || envio.conductor?.nombre || '-'}
@@ -617,7 +625,6 @@ export default function Envios() {
                       <td className="p-4 text-center">
                         <select
                           value={envio.estado || "PENDIENTE"}
-                          // Usamos idEnvio para la actualización
                           onChange={(e) => {
                             const id = envio.idEnvio ?? envio.id;
                             if (id) cambiarEstadoEnvio(id, e.target.value as EstadoEnvio);
@@ -673,14 +680,14 @@ export default function Envios() {
                     <div className="flex justify-between items-start gap-4">
                       <div>
                         <p className="font-bold text-gray-900 text-lg">
-                          Pedido #{envio.idPedido || (envio.pedido ? envio.pedido.id : '?')}
+                          Pedido #{envio.idPedido || envio.pedido?.id}
                         </p>
                         <p className="text-gray-600 text-sm">
-                          {envio.nombreCliente || (envio.pedido?.cliente?.nombre) || 'Sin cliente'}
+                          {envio.nombreCliente || envio.pedido?.cliente?.nombre || 'Sin cliente'}
                         </p>
                       </div>
                       
-                      {/* Selector de Estado (Funcional en Móvil) */}
+                      {/* Selector de Estado */}
                       <select
                         value={envio.estado || "PENDIENTE"}
                         onChange={(e) => {
@@ -703,13 +710,13 @@ export default function Envios() {
                       <div>
                         <p className="text-gray-400 text-xs uppercase font-semibold mb-1">Vehículo</p>
                         <div className="font-medium text-gray-800">
-                          {envio.placaVehiculo || (envio.vehiculo ? envio.vehiculo.placa : '-')}
+                          {envio.placaVehiculo || envio.vehiculo?.placa || '-'}
                         </div>
                       </div>
                       <div>
                         <p className="text-gray-400 text-xs uppercase font-semibold mb-1">Conductor</p>
                         <div className="font-medium text-gray-800 truncate">
-                          {envio.nombreConductor || (envio.conductor ? envio.conductor.nombre : '-')}
+                          {envio.nombreConductor || envio.conductor?.nombre || '-'}
                         </div>
                       </div>
                     </div>
@@ -776,7 +783,7 @@ export default function Envios() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                   <div>
                     <p className="text-xs text-blue-600/70 font-medium uppercase tracking-wider">Cliente</p>
-                    <p className="font-semibold text-gray-800 truncate">{pedidoSeleccionado.clienteNombre}</p>
+                    <p className="font-semibold text-gray-800 truncate">{pedidoSeleccionado.clienteNombre || pedidoSeleccionado.nombreCliente}</p>
                   </div>
                   <div>
                     <p className="text-xs text-blue-600/70 font-medium uppercase tracking-wider">Total</p>
@@ -793,10 +800,10 @@ export default function Envios() {
                 </div>
               </div>
               
-              {/* Grid Responsiva: 1 columna en móvil, 2 en desktop */}
+              {/* Grid Responsiva */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
                 
-                {/* Columna Izquierda: Logística */}
+                {/* Columna Izquierda: Recursos */}
                 <div className="space-y-5">
                   <div className="flex items-center gap-2 border-b pb-2 mb-4">
                     <span className="bg-gray-100 text-gray-600 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold">1</span>
@@ -816,7 +823,6 @@ export default function Envios() {
                         required
                       >
                         <option value="">Seleccionar vehículo...</option>
-                        {/* ✅ FILTRO APLICADO: Solo estado DISPONIBLE */}
                         {vehiculos
                           .filter((v: any) => v.estado === 'DISPONIBLE')
                           .map(v => (
@@ -827,10 +833,9 @@ export default function Envios() {
                       </select>
                       <FiTruck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     </div>
-                    {/* Mensaje si no hay vehículos */}
                     {vehiculos.filter((v: any) => v.estado === 'DISPONIBLE').length === 0 && (
                       <p className="text-xs text-amber-600 mt-1 flex items-center gap-1">
-                        ⚠️ No hay vehículos disponibles. Registre uno nuevo o libere uno existente.
+                        ⚠️ No hay vehículos disponibles.
                       </p>
                     )}
                   </div>
@@ -890,15 +895,30 @@ export default function Envios() {
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
                       Dirección de Envío <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      name="direccionEnvio"
-                      value={formData.direccionEnvio}
-                      onChange={(e) => setFormData(prev => ({ ...prev, direccionEnvio: e.target.value }))}
-                      className="w-full px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
-                      placeholder="Ej: Av. Principal 123, Ciudad"
-                      required
-                    />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        name="direccionEnvio"
+                        value={formData.direccionEnvio}
+                        onChange={(e) => setFormData(prev => ({ ...prev, direccionEnvio: e.target.value }))}
+                        className="flex-1 px-4 py-2.5 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
+                        placeholder="Ej: Av. Principal 123, Ciudad"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={openMapModal}
+                        className="px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2 whitespace-nowrap text-sm"
+                      >
+                        <FiMapPin size={16} />
+                        Mapa
+                      </button>
+                    </div>
+                    {selectedLocation && (
+                      <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                        ✅ Ubicación seleccionada: {selectedLocation.address}
+                      </div>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
@@ -984,383 +1004,74 @@ export default function Envios() {
         </div>
       )}
 
-      {/* MODAL: Ver Detalles de Envío (DISEÑO MEJORADO) */}
-      {showDetailModal && envioSeleccionado && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl overflow-hidden flex flex-col max-h-[90vh] animate-fade-in-up">
-            
-            {/* Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-gray-50 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
-                  <FiPackage size={20} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-800">Detalles del Envío</h2>
-                  <p className="text-xs text-gray-500">ID: #{envioSeleccionado.idEnvio || envioSeleccionado.id}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowDetailModal(false)} 
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-200 rounded-full transition-colors"
-              >
-                <FiX size={24} />
-              </button>
-            </div>
-
-            {/* Body Scrollable */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-white">
-              
-              {/* Sección 1: Estado y Costo (Destacado) */}
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-gray-50 border border-gray-100 rounded-xl gap-4">
-                <div>
-                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Estado Actual</p>
-                  <span className={`px-3 py-1 rounded-full text-sm font-bold border ${estadoColor(envioSeleccionado.estado as EstadoEnvio)}`}>
-                    {envioSeleccionado.estado}
-                  </span>
-                </div>
-                <div className="sm:text-right">
-                  <p className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Costo Transporte</p>
-                  <p className="text-2xl font-bold text-gray-800">S/ {envioSeleccionado.costoTransporte?.toFixed(2) || '0.00'}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Columna Izquierda: Información del Pedido */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
-                    <FiShoppingCart className="text-blue-500" /> Información del Pedido
-                  </h3>
-                  
-                  <div className="grid grid-cols-2 gap-y-4 text-sm">
-                    <div>
-                      <p className="text-gray-500 text-xs mb-0.5">N° Pedido</p>
-                      <p className="font-semibold text-gray-800">#{envioSeleccionado.idPedido || envioSeleccionado.pedido?.id}</p>
-                    </div>
-                    <div>
-                      <p className="text-gray-500 text-xs mb-0.5">Total Pedido</p>
-                      <p className="font-semibold text-gray-800">S/ {envioSeleccionado.totalPedido?.toFixed(2) || '0.00'}</p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-gray-500 text-xs mb-0.5">Cliente</p>
-                      <p className="font-semibold text-gray-800">{envioSeleccionado.nombreCliente || envioSeleccionado.pedido?.cliente?.nombre || 'Sin cliente'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Columna Derecha: Logística */}
-                <div className="space-y-4">
-                  <h3 className="text-sm font-bold text-gray-900 border-b pb-2 flex items-center gap-2">
-                    <FiTruck className="text-green-500" /> Logística
-                  </h3>
-                  
-                  <div className="space-y-3 text-sm">
-                    <div className="flex items-start gap-3">
-                      <div className="bg-gray-100 p-1.5 rounded text-gray-500 mt-0.5"><FiUser size={14}/></div>
-                      <div>
-                        <p className="text-gray-500 text-xs">Conductor</p>
-                        <p className="font-medium text-gray-800">{envioSeleccionado.nombreConductor || envioSeleccionado.conductor?.nombre || '-'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="bg-gray-100 p-1.5 rounded text-gray-500 mt-0.5"><FiTruck size={14}/></div>
-                      <div>
-                        <p className="text-gray-500 text-xs">Vehículo</p>
-                        <p className="font-medium text-gray-800">{envioSeleccionado.placaVehiculo || envioSeleccionado.vehiculo?.placa || '-'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <div className="bg-gray-100 p-1.5 rounded text-gray-500 mt-0.5"><FiMap size={14}/></div>
-                      <div>
-                        <p className="text-gray-500 text-xs">Ruta</p>
-                        <p className="font-medium text-gray-800">{envioSeleccionado.nombreRuta || envioSeleccionado.ruta?.nombre || 'Ruta Manual'}</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Sección Inferior: Dirección y Fechas */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2">
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-gray-900">Dirección de Entrega</p>
-                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 text-sm text-gray-700 flex items-start gap-2">
-                    <FiMap className="text-gray-400 mt-0.5 shrink-0" />
-                    {envioSeleccionado.direccionEnvio || 'Sin dirección registrada'}
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <p className="text-sm font-bold text-gray-900">Fechas Programadas</p>
-                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-100 text-sm grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-blue-500 text-xs font-semibold uppercase">Salida</p>
-                      <p className="text-blue-900 font-medium">{formatDate(envioSeleccionado.fechaEnvio)}</p>
-                    </div>
-                    <div>
-                      <p className="text-blue-500 text-xs font-semibold uppercase">Entrega</p>
-                      <p className="text-blue-900 font-medium">{formatDate(envioSeleccionado.fechaEntrega)}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Observaciones */}
-              {envioSeleccionado.observaciones && (
-                <div className="pt-2">
-                  <p className="text-sm font-bold text-gray-900 mb-2">Observaciones</p>
-                  <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-100 text-sm text-yellow-800 italic">
-                    "{envioSeleccionado.observaciones}"
-                  </div>
-                </div>
-              )}
-
-            </div>
-
-            {/* Footer */}
-            <div className="p-4 md:p-6 border-t border-gray-100 bg-gray-50 flex justify-end shrink-0">
-              <button
-                onClick={() => setShowDetailModal(false)}
-                className="px-6 py-2.5 bg-white border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
-              >
-                Cerrar
-              </button>
-            </div>
+      {/* MODAL: OpenStreetMap Selector */}
+{showMapModal && (
+  <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 z-[100]">
+    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up">
+      <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-white shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="bg-blue-100 p-2 rounded-lg text-blue-600">
+            <FiMapPin size={24} />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">Seleccionar Ubicación en el Mapa</h2>
+            <p className="text-sm text-gray-500">Haz clic en el mapa para seleccionar la dirección de entrega</p>
           </div>
         </div>
-      )}
-      {/* MODAL: Editar Envío (DISEÑO RENOVADO) */}
-      {showModal && envioSeleccionado && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 transition-opacity">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col animate-fade-in-up">
-            
-            {/* Header Sticky */}
-            <div className="sticky top-0 bg-white px-6 py-4 border-b border-gray-100 flex justify-between items-center z-10 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="bg-amber-100 p-2 rounded-lg text-amber-600">
-                  <FiEdit size={24} />
-                </div>
-                <div>
-                  <h2 className="text-xl md:text-2xl font-bold text-gray-800">Editar Envío</h2>
-                  <p className="text-xs text-gray-500">Actualizando datos logísticos</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => { setShowModal(false); resetForm(); }} 
-                className="p-2 hover:bg-gray-100 rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-gray-200"
-              >
-                <FiX size={24} className="text-gray-500" />
-              </button>
-            </div>
-
-            {/* Formulario Scrollable */}
-            <form onSubmit={handleActualizarEnvio} className="flex-1 overflow-y-auto p-4 md:p-6 bg-gray-50/30">
-              
-              {/* Resumen del Pedido (Contexto) */}
-              <div className="mb-8 bg-amber-50 border border-amber-100 rounded-xl p-5 shadow-sm">
-                <h3 className="font-bold text-amber-800 mb-4 flex items-center gap-2 text-sm uppercase tracking-wide">
-                  <FiPackage /> Contexto del Pedido
-                </h3>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-                  <div>
-                    <p className="text-xs text-amber-600/70 font-bold uppercase">N° Pedido</p>
-                    <p className="font-bold text-gray-800 text-lg">#{envioSeleccionado.idPedido || envioSeleccionado.pedido?.id}</p>
-                  </div>
-                  <div className="col-span-1 md:col-span-2">
-                    <p className="text-xs text-amber-600/70 font-bold uppercase">Cliente</p>
-                    <p className="font-semibold text-gray-800 truncate">{envioSeleccionado.nombreCliente || envioSeleccionado.pedido?.cliente?.nombre}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-amber-600/70 font-bold uppercase">Total</p>
-                    <p className="font-bold text-gray-800">S/ {envioSeleccionado.totalPedido?.toFixed(2) || '0.00'}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Grid Principal */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                
-                {/* Columna Izquierda: Recursos */}
-                <div className="space-y-6 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                  <div className="border-b pb-3 mb-2">
-                    <h4 className="font-bold text-gray-700 flex items-center gap-2">
-                      <FiTruck className="text-blue-500" /> Recursos Asignados
-                    </h4>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Vehículo</label>
-                    <div className="relative">
-                      <select
-                        name="idVehiculo"
-                        value={formData.idVehiculo !== undefined ? formData.idVehiculo : ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, idVehiculo: Number(e.target.value) || undefined }))}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-all text-sm"
-                      >
-                        <option value="">Seleccionar vehículo...</option>
-                        {vehiculos.map(v => (
-                          <option key={v.id} value={v.id}>
-                            {v.placa} - {v.marca} {v.modelo}
-                          </option>
-                        ))}
-                      </select>
-                      <FiTruck className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Conductor</label>
-                    <div className="relative">
-                      <select
-                        name="idConductor"
-                        value={formData.idConductor !== undefined ? formData.idConductor : ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, idConductor: Number(e.target.value) || undefined }))}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-all text-sm"
-                      >
-                        <option value="">Seleccionar conductor...</option>
-                        {conductores.map(c => (
-                          <option key={c.id} value={c.id}>
-                            {c.persona?.nombres} {c.persona?.apellidoPaterno}
-                          </option>
-                        ))}
-                      </select>
-                      <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Ruta</label>
-                    <div className="relative">
-                      <select
-                        name="idRuta"
-                        value={formData.idRuta !== undefined ? formData.idRuta : ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, idRuta: Number(e.target.value) || undefined }))}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white transition-all text-sm"
-                      >
-                        <option value="">Seleccionar ruta...</option>
-                        {rutas.map(r => (
-                          <option key={r.id} value={r.id}>
-                            {r.nombre} - S/ {r.costo}
-                          </option>
-                        ))}
-                      </select>
-                      <FiMap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Columna Derecha: Detalles */}
-                <div className="space-y-6 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                  <div className="border-b pb-3 mb-2">
-                    <h4 className="font-bold text-gray-700 flex items-center gap-2">
-                      <FiMap className="text-green-500" /> Detalles de Entrega
-                    </h4>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Dirección de Envío</label>
-                    <div className="relative">
-                      <input
-                        type="text"
-                        name="direccionEnvio"
-                        value={formData.direccionEnvio}
-                        onChange={(e) => setFormData(prev => ({ ...prev, direccionEnvio: e.target.value }))}
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm"
-                      />
-                      <FiMap className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha Envío</label>
-                      <input
-                        type="date"
-                        name="fechaEnvio"
-                        value={formData.fechaEnvio}
-                        onChange={(e) => setFormData(prev => ({ ...prev, fechaEnvio: e.target.value }))}
-                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Fecha Entrega</label>
-                      <input
-                        type="date"
-                        name="fechaEntrega"
-                        value={formData.fechaEntrega}
-                        onChange={(e) => setFormData(prev => ({ ...prev, fechaEntrega: e.target.value }))}
-                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Costo (S/)</label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          step="0.01"
-                          name="costoTransporte"
-                          value={formData.costoTransporte}
-                          onChange={(e) => setFormData(prev => ({ ...prev, costoTransporte: Number(e.target.value) }))}
-                          className="w-full pl-8 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                        />
-                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">S/</span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-2">Estado</label>
-                      <select
-                        name="estado"
-                        value={formData.estado}
-                        onChange={(e) => setFormData(prev => ({ ...prev, estado: e.target.value as EstadoEnvio }))}
-                        className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-medium"
-                      >
-                        <option value="PENDIENTE">PENDIENTE</option>
-                        <option value="EN_RUTA">EN RUTA</option>
-                        <option value="ENTREGADO">ENTREGADO</option>
-                        <option value="CANCELADO">CANCELADO</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Observaciones (Full Width) */}
-              <div className="mt-8 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Observaciones</label>
-                <textarea
-                  name="observaciones"
-                  value={formData.observaciones}
-                  onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 transition-all text-sm"
-                  placeholder="Información adicional..."
-                />
-              </div>
-
-              {/* Footer Sticky Bottom en Móvil */}
-              <div className="mt-8 pt-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row gap-3 justify-end">
-                <button
-                  type="button"
-                  onClick={() => { setShowModal(false); resetForm(); }}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-all w-full sm:w-auto text-sm sm:text-base"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-3 bg-blue-600 text-white font-medium rounded-xl hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all w-full sm:w-auto text-sm sm:text-base flex items-center justify-center gap-2"
-                >
-                  <FiEdit /> Actualizar Envío
-                </button>
-              </div>
-
-            </form>
-          </div>
+        <button 
+          onClick={() => setShowMapModal(false)} 
+          className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+        >
+          <FiX size={24} className="text-gray-500" />
+        </button>
+      </div>
+      
+      <div className="flex-1 p-4">
+        <OpenStreetMapSelector
+          onLocationSelect={handleLocationSelect}
+          initialLocation={
+            selectedLocation 
+              ? { lat: selectedLocation.lat, lng: selectedLocation.lng }
+              : undefined
+          }
+          height="500px"
+        />
+      </div>
+      
+      <div className="p-4 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
+        <div className="text-sm text-gray-600">
+          {selectedLocation ? (
+            <span className="text-green-600">✅ Ubicación seleccionada</span>
+          ) : (
+            <span className="text-amber-600">📍 Haz clic en el mapa para seleccionar una ubicación</span>
+          )}
         </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowMapModal(false)}
+            className="px-5 py-2 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (selectedLocation) {
+                setShowMapModal(false);
+              } else {
+                alert("Por favor selecciona una ubicación en el mapa");
+              }
+            }}
+            className="px-5 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Confirmar Ubicación
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
       )}
     </div>
   );
