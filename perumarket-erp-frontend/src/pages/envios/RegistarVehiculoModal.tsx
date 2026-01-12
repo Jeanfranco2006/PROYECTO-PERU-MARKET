@@ -56,7 +56,7 @@ export default function VehiculoModal({ onSaved }: { onSaved?: () => void }) {
             {/* HEADER CON GRADIENTE */}
             <div className="relative bg-gradient-to-r from-blue-600 to-indigo-700 px-6 py-6 overflow-hidden">
               
-              {/* ✅ CORRECCIÓN 1: z-10 para asegurar que el botón esté encima de la decoración */}
+              {/* ✅ CORRECCIÓN 1: z-10 para asegurar que el botón esté encima de la decoración + css*/}
               <div className="relative z-10 flex justify-between items-start text-white">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
